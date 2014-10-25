@@ -28,7 +28,8 @@ Make interfaces easy to use correctly and hard to use incorrectly: [Meyers05](#M
 
 By default, all data members should be private (except if the class is an *aggregate*) and accessible only through member functions. [Sutter05](#Sutter05) §41
 
-By default, classes should never provide functions that return handles to internal (private) members, allowing external code to modify them (even const is not safe because it can be cast away). The exception is if compatibility with existing (legacy) code is necessary, and then the reasoning behind these exceptions should be clearly documented. [Sutter05](#Sutter05) §42
+By default, classes should never provide functions that return handles to internal (private) members, allowing external code to modify them (even const is not safe because it can be cast away).
+The exception is if compatibility with existing (legacy) code is necessary, and then the reasoning behind these exceptions should be clearly documented. [Sutter05](#Sutter05) §42
 
 
 ### Composition vs. inheritance
@@ -67,9 +68,11 @@ Use private inheritance instead of composition only when absolutely necessary, w
 
 Never use public inheritance except to model true Liskow IS-A and WORKS-LIKE-A. All overridden member functions must require no more and promise no less. [Sutter99](#Sutter99) §22
 
-Never inherit from a class that was not designed to be a base class. To add more functionality to a concrete class, define free (nonmember) functions to do the job instead, and put them in the same namespace as the class they are designed to extend. [Sutter05](#Sutter05) §35
+Never inherit from a class that was not designed to be a base class.
+To add more functionality to a concrete class, define free (nonmember) functions to do the job instead, and put them in the same namespace as the class they are designed to extend. [Sutter05](#Sutter05) §35
 
-Never inherit publicly only because it allows you to reuse common code in the base class! Instead, inherit because it allows the derived class to be reused by code that uses objects of the base class polymorphically. Before object orientation, it has always been easy for new code to call existing code. Public inheritance specifically makes it easier for existing code to seamlessly and safely call new code. (So do templates, which provide static polymorphism that can blend well with dynamic polymorphism.) [Sutter99](#Sutter99) §22 [Sutter05](#Sutter05) §37
+Never inherit publicly only because it allows you to reuse common code in the base class! Instead, inherit because it allows the derived class to be reused by code that uses objects of the base class polymorphically.
+Before object orientation, it has always been easy for new code to call existing code. Public inheritance specifically makes it easier for existing code to seamlessly and safely call new code. (So do templates, which provide static polymorphism that can blend well with dynamic polymorphism.) [Sutter99](#Sutter99) §22 [Sutter05](#Sutter05) §37
 
 Both classes and templates support interfaces and polymorphism. Templates can be an alternative to implementing public inheritance (static polymorphism instead of dynamic). [Meyers05](#Meyers05) §41, [Sutter05](#Sutter05) §37
 - For classes, interfaces are explicit and centered on function signatures. Polymorphism occurs at runtime through virtual functions.
@@ -96,7 +99,9 @@ Inheritance should be used only when: [Sutter05](#Sutter05) §34
     The first part applies if the using class has to inherit from one of the same virtual bases as the used class. If it does not, the second part may still apply: The most-derived class is responsible for initializing all virtual base classes, and so if you need to use a different constructor or different constructor parameters for a virtual base, then you must inherit.
 -   You benefit from the Empty Base Optimization and it matters to the program (non-public inheritance).
 -   You need controlled polymorphism (non-public inheritance).
-    Public inheritance should always model "is-a" as per the Liskov Substitution Principle (LSP). Non-public inheritance can express a restricted form of "is-a", even though most people identify "is-a" with public inheritance alone. Given "class Derived : private Base", from the point of view of outside code, a Derived object "is-not-a" Base, and so of course can't be used polymorphically as a Base because of the access restrictions imposed by private inheritance. However, inside Derived's own member functions and friends only, a Derived object can indeed be used polymorphically as a Base (you can supply a pointer or reference to a Derived object where a Base object is expected), because members and friends have the necessary access.
+    Public inheritance should always model "is-a" as per the Liskov Substitution Principle (LSP).
+    Non-public inheritance can express a restricted form of "is-a", even though most people identify "is-a" with public inheritance alone. Given `class Derived : private Base`, from the point of view of outside code, a Derived object "is-not-a" Base, and so of course can't be used polymorphically as a Base because of the access restrictions imposed by private inheritance.
+    However, inside Derived's own member functions and friends only, a Derived object can indeed be used polymorphically as a Base (you can supply a pointer or reference to a Derived object where a Base object is expected), because members and friends have the necessary access.
     If instead of private inheritance you use protected inheritance, then the "is-a" relationship is additionally visible to further-derived classes, which means subclasses can also make use of the polymorphism.
 
 When overriding a virtual base class function: [Sutter05](#Sutter05) §38
@@ -221,9 +226,11 @@ Base classes are the building blocks of class hierarchies. They establish interf
         // Virtual functions (protected if needed), defining implementation details
     };
 
-Base classes with a high cost of change should have public functions that are nonvirtual rather than (non-pure) virtual. Virtual functions should be made private, or protected if derived classes need to be able to call them (see [NVI](#NVI)). Destructors are an exception to this rule. [Sutter05](#Sutter05) §39
+Base classes with a high cost of change should have public functions that are nonvirtual rather than (non-pure) virtual.
+Virtual functions should be made private, or protected if derived classes need to be able to call them (see [NVI](#NVI)). Destructors are an exception to this rule. [Sutter05](#Sutter05) §39
 
-Base classes should always be abstract if they don't need to be used as leaf classes in an inheritance hierarchy. If a base class is concrete because some aspects of it require it to be, while it's also used to implement common functionality of derived classes, separate out the common parts into an abstract base class and make the original base class inherit from that along with the other leaf classes. [Meyers96](#Meyers96) §33
+Base classes should always be abstract if they don't need to be used as leaf classes in an inheritance hierarchy.
+If a base class is concrete because some aspects of it require it to be, while it's also used to implement common functionality of derived classes, separate out the common parts into an abstract base class and make the original base class inherit from that along with the other leaf classes. [Meyers96](#Meyers96) §33
 
 Normally, base class destructors should be public and virtual. To prevent polymorphic deletion through base class pointers, make the destructor non-virtual and protected. [Sutter02](#Sutter02) §27
 
@@ -240,7 +247,7 @@ Abstract interfaces are classes made up entirly of (pure) virtual functions and 
     {
     public:
     
-        // Public virtual destructor to allow polymorphic deletion. [Sutter02](#Sutter02) §27
+        // Public virtual destructor to allow polymorphic deletion. [Sutter02] §27
         virtual ~Interface () = 0;
     
         // Only pure virtual interface functions.
@@ -252,12 +259,15 @@ Abstract interfaces are classes made up entirly of (pure) virtual functions and 
 
 ### Traits classes
 
-Traits classes are templates that carry information about types. They contain only typedefs and static functions, and have no modifiable state or virtual functions. Traits classes make information about types available during compilation (as opposed to virtual functions or function pointers). In conjunction with overloading, traits classes make it possible to perform compile-time if...else tests on types. [Meyers05](#Meyers05) §47, [Sutter02](#Sutter02) §4 [Sutter05](#Sutter05) §32
+Traits classes are templates that carry information about types. They contain only typedefs and static functions, and have no modifiable state or virtual functions.
+Traits classes make information about types available during compilation (as opposed to virtual functions or function pointers).
+In conjunction with overloading, traits classes make it possible to perform compile-time if...else tests on types. [Meyers05](#Meyers05) §47, [Sutter02](#Sutter02) §4 [Sutter05](#Sutter05) §32
 
 > Think of a trait as a small object whose main purpose is to carry information used by another object or algorithm to determine "policy" or "implementation details"
 > -- <cite>Bjarne Stroustrup</cite>
 
-Traits classes can solve the problem of generalizing functions on different types when templates alone aren't sufficient (because of different behavior) and you cannot use class polymorphism (because the types are primitive). Traits classes rely on explicit template specialization for different types.
+Traits classes can solve the problem of generalizing functions on different types when templates alone aren't sufficient (because of different behavior) and you cannot use class polymorphism (because the types are primitive). 
+Traits classes rely on explicit template specialization for different types.
 
 Examples: `std::iterator_traits`, `std::numeric_limits`
 
@@ -293,11 +303,15 @@ Examples: `std::iterator_traits`, `std::numeric_limits`
 
 ### Functor classes
 
-A functor is a class modelled after function pointers. The convention in STL is to pass functors by value. Therefore, they should be lightweight and have valid copy-semantics. They also need to be monomorphic, i.e. not use virtual functions. State and polymorphism can be implemented using the [Pimpl idiom](#Pimpl). [Meyers01](#Meyers01) §38
+A functor is a class modelled after function pointers. The convention in STL is to pass functors by value. Therefore, they should be lightweight and have valid copy-semantics. They also need to be monomorphic, i.e. not use virtual functions.
+State and polymorphism can be implemented using the [Pimpl idiom](#Pimpl). [Meyers01](#Meyers01) §38
 
-Functors that are predicates (i.e. return bool or something that can be implicitly converted into bool) should be pure functions, i.e. their return value should only depend on the input values and not some internal state. Defining `operator()` `const` is necessary for predicates, but internally they must also avoid accessing mutable data members, non-const local static objects, non-const objects at namespace scope and non-const global objects. The C++ standard doesn't guarantee that stateful predicates will work with standard algorithms! [Meyers01](#Meyers01) §39 [Sutter02](#Sutter02) §3
+Functors that are predicates (i.e. return bool or something that can be implicitly converted into bool) should be pure functions, i.e. their return value should only depend on the input values and not some internal state. 
+Defining `operator()` `const` is necessary for predicates, but internally they must also avoid accessing mutable data members, non-const local static objects, non-const objects at namespace scope and non-const global objects. 
+The C++ standard doesn't guarantee that stateful predicates will work with standard algorithms! [Meyers01](#Meyers01) §39 [Sutter02](#Sutter02) §3
 
-Functors that are made adaptable can be used in many more contexts than functors that are not. Making them adaptable simply means to define some of the typedefs `argument_type`, `first_argument_type`, `second_argument_type`, and `result_type`. The conventional way to do so is to inherit from `std::unary_function` or `std::binary_function`, depending on if the functor takes one or two arguments. These base structs are templates, taking either two or three types. The last one is the return type of `operator()`, the first one(s) are its argument type(s). When the input parameters are `const` and not pointers, it is conventional to strip off const qualifiers for these types, while for pointers the `const` should be kept. Adaptable functors do not define more than one operator() function. [Meyers01](#Meyers01) §40
+Functors that are made adaptable can be used in many more contexts than functors that are not. Making them adaptable simply means to define some of the typedefs `argument_type`, `first_argument_type`, `second_argument_type`, and `result_type`. The conventional way to do so is to inherit from `std::unary_function` or `std::binary_function`, depending on if the functor takes one or two arguments. These base structs are templates, taking either two or three types. The last one is the return type of `operator()`, the first one(s) are its argument type(s).
+When the input parameters are `const` and not pointers, it is conventional to strip off const qualifiers for these types, while for pointers the `const` should be kept. Adaptable functors do not define more than one `operator()` function. [Meyers01](#Meyers01) §40
 
 **Example implemenations:**
 
@@ -372,13 +386,13 @@ Exceptions should be thrown by value and be caught by (const) reference. If re-t
         // No-fail constructor
         ExceptionClass() {}
     
-        // No-fail copy constructor (throwing from this would abort the program!) [Sutter05](#Sutter05) §32
+        // No-fail copy constructor (throwing from this would abort the program!) [Sutter05] §32
         ExceptionClass(const ExceptionClass& rhs) {}
     
         // Destructor
         ~ExceptionClass() throw() {};
     
-        // Virtual functions, often implements Cloning and the Visitor pattern [Sutter05](#Sutter05) §54
+        // Virtual functions, often implements Cloning and the Visitor Pattern [Sutter05] §54
     }
 
 
@@ -386,7 +400,8 @@ Exceptions should be thrown by value and be caught by (const) reference. If re-t
 
 Policy classes (normally templates) are fragments of pluggable behavior. They are not usually instantiated standalone but as a base or member of another class. They may or may not have state or virtual functions.
 
-In brief, policy-based class design fosters assembling a class (called the host) with complex behavior out of many little classes (called policies), each of which takes care of only one behavioral or structural aspect. As the name suggests, a policy establishes an interface pertaining to a specific issue. You can implement policies in various ways as long as you respect the policy interface.
+In brief, policy-based class design fosters assembling a class (called the host) with complex behavior out of many little classes (called policies), each of which takes care of only one behavioral or structural aspect. As the name suggests, a policy establishes an interface pertaining to a specific issue. 
+You can implement policies in various ways as long as you respect the policy interface.
 
 Because you can mix and match policies, you can achieve a combinatorial set of behaviors by using a small core of elementary components.
 
@@ -438,8 +453,7 @@ Because you can mix and match policies, you can achieve a combinatorial set of b
         // Behaviour method
         void run() const
         {
-            // Two policy methods
-            print(message());
+            print(message()); // Two policy methods
         }
     };
     
@@ -543,6 +557,165 @@ APIs often require access to raw resources, so RAII classes should provide some 
 
 Class-related keywords
 ----------------------
+
+The following is a summary of the important class-related keywords in C++
+
+
+### class, struct, union
+
+`class`, `struct` and `union` are all keywords used to defined C++ classes.
+
+For a class defined using `class`, the default member access level is `private`.
+
+For a class defined using `struct`, the default member access level is `public`.
+
+For a class defined using `union`, the default member access level is `public`. It cannot contain virtual functions or static data members, and cannot use inheritance.
+It is specifically used for declaring variables that can hold data of different types simultaneously, using the same portion of memory (its size is the size of the biggest data member).
+Before C++11 unions have always been restricted to hold POD types.
+
+
+### public, protected, private
+
+These keywords may refer to class member access levels, or the form of inheritance used.
+
+- `public` data members are part of the class's interface and can be accessed by anyone.
+- `protected` data members are part of the class's interface only to classes that inherit from it.
+- `private` data members are accessible only to the class itself.
+
+`protected` is no more encapsulated than public! (see `using`). [Meyers05](#Meyers05) §22
+
+Declare data members private. It gives clients syntactically uniform access to data, affords fine-grained acess control, allows invariants to be enforced, and offers class authors implementation flexibility. [Meyers05](#Meyers05) §22
+
+
+### const
+
+Use `const` proactively, it makes code simpler to understand. Declare class member functions `const` whenever possible. Avoid `const` pass-by-value parameters in function declarations though, it is equivalent and cleaner to omit it. Still, declare the same parameter `const` in the function definition if applicable, it can catch unintended changes to the parameter inside the function. [Meyers05](#Meyers05) §3, [Sutter05](#Sutter05) §15
+
+When const and non-const member functions have essentially identical implementations, code duplication can be avoided by having the non-const version call the const version. [Meyers05](#Meyers05) §3
+
+
+### virtual
+
+`virtual` declares a function overrideable in a derived class. Accessing an object's virtual function through a base class pointer will invoke the most derived version of that function.
+
+a "pure virtual" function is one declared as `virtual f() = 0;` and forces derived classes to provide an implementation if they are not to be abstract classes themselves.
+
+`virtual` can also be used before the name of the base class in a derived class defintion to implement virtual inheritance, solving the diamond inheritance problem of having multiple base class versions of the same function.
+Under virtual inheritance, a copy of the base class will not be included in the derived class and accessed directly. Instead, it will contain a (virtual) pointer to the base class so that further derived classes can inherit from multiple classes with the same base, and not get multiple, ambiguous implementations of inherited functions.
+The constructor of a base class will not be called when inherited virtually, instead it will be called by the next class that inherits non-virtually from it.
+
+
+### explicit
+
+Prevents implicit type conversions on constructors taking exactly one argument without default values. By default, always use it in this context. [Sutter05](#Sutter05) §40
+
+
+### static
+
+The `static` keyword has multiple uses in C++, which can lead to a bit of confusion:
+
+- Used before a variable or free function declaration at file scope, it defines internal linkage. The variable or function acts like a global, but only within that file.
+- Used before a variable or function inside a class, it defines one shared copy of that member by all instances of a class. When combined with `const`, it can have an initializer.
+- Used before a variable inside a function, that variable retains its state between function calls.
+- A globally declared anonymous union must be declared static.
+
+
+### using
+
+Introduces a name that is declared elsewhere into the declarative region where the `using` declaration appears. A class definition defines a namespace, so `using` declarations inside a class definition only applies within that class.
+
+`using` can be used to expose protected members of base classes as public members in derived classes:
+
+    class Base
+    {
+    protected:
+    
+        int foo; // Base::foo is protected
+    };
+    
+    Class Derived : public Base
+    {
+    public:
+    
+        using Base::foo; // Derived::foo is public
+    };
+
+
+### inline
+
+Functions declared `inline` will make the compiler replace calls to it with a copy of the function body, replacing arguments with the call values. This can optimize performance while avoiding code repetition. The compiler probably does this for most small functions not explicitly declared inline anyway.
+
+Limit most inlining to small, frequently called functions. This facilitates debugging and binary upgradability, minimizes potential code bloat, and maximizes the chances of greater program speed.
+Don't declare function templates inline just because they appear in header files. Wait until the linker requires it. [Meyers05](#Meyers05) §30
+
+
+### template
+
+When declaring template parameters, `class` and `typename` are interchangeable. Use `typename` to identify nested dependent type names, except in base class lists or as a base class identifier in a member initialization list. [Meyers05](#Meyers05) §42
+
+In derived class templates, refer to names in base class templates via a `this->` prefix, via `using` declarations, or via an explicit base class qualification. [Meyers05](#Meyers05) §43
+
+
+### friend
+
+The `friend` keyword can be used to override access restrictions for other classes or functions.
+
+**Example:**
+
+    Class Foo
+    {
+    private:
+    
+        int data;
+    
+        friend class Bar;      // Bar will be able to access Foo::data
+        friend int Baz::fun(); // Baz::fun() (not Baz in general) will be able to access Foo::data
+        friend void ::fun()    // The global fun() will be able to access Foo::data
+    };
+
+It is common to use friend functions for operator overloading, where an overloaded operator must have access to the internals of the classes that are arguments to the operator.
+
+
+### operator
+
+`operator` is not a standalone keyword, but prefix to a function name defining an overloaded operator (e.g. `Foo operator+(Foo &other);`. This name is nothing more than a glorified function name, and the function may in fact be called using it normally, but also allows it to be used with a corresponding C++ operator's syntax (see *Operators*).
+
+### throw
+
+Causes the compiler to inject implicit try/catch blocks around the function body to enforce via run-time checking that the function does in fact throw only the specified exceptions.
+
+As a rule of thumb, never ever use it, unless forced to when overriding a base class virtual function that uses it and you cannot remove that too! In that case, use the identical exception specification for the overriding function. [Meyers96](#Meyers96) §14, [Sutter05](#Sutter05) §75
+    
+C++11 has deprecated the `throw` keyword. The `noexcept` keyword was added to supersede the empty throw specification.
+
+
+### non-member, non-friend functions
+
+Non-member, non-friend functions improve encapsulation by minimizing dependencies. When possible, prefer making functions non-member non-friends. [Meyers05](#Meyers05) §23
+
+Algorithm for determining whether a function should be a member and/or friend [Sutter05](#Sutter05) §44:
+
+    If: The function is one of the operators =, ->, [], or (), which must be members:
+    
+        Make it a member.
+    
+    Else if any of:
+        a) The function needs a different type as its left-hand argument (as do operators >> or <<, for example).
+        b) The function needs type conversions on its leftmost argument.
+        c) The function can be implemented using the class's public interface alone:
+    
+        Make it a nonmember (and friend if needed in cases a) and b) ).
+    
+        If it needs to behave virtually:
+    
+            Add a virtual member function to provide the virtual behavior, and implement the nonmember in terms of that.
+    
+    Else:
+        Make it a member.
+
+Always define a non-member function in the same namespace as its related class. [Sutter05](#Sutter05) §57
+
+If you need type conversions on all parameters to a function (including the one that would otherwise be pointed to by the this pointer), the function must be a non-member. [Meyers05](#Meyers05) §24
 
 
 Functions with special semantics
