@@ -1,16 +1,35 @@
 C++ classes quick reference
 ===========================
 
+This document is a collection of design guidelines for C++ classes. It is intended to be used as a quick reference when designing new classes or refactoring old ones.
+For brevity and simplicity of use, it does not discuss at length the *why's* of the guidelines, but instead presents references to further reading about the subject.
+
+The guidelines are currently focused on C++98 use but features some notes about later versions.
+
 
 General class design guidelines
 -------------------------------
 
-When deciding how to design a C++ class, there are several considerations to take into account:
+When deciding how to design a C++ class, there are several considerations to take into account.
+
+Treat class design as type design. Before defining a new type, be sure to consider all these issues: [Meyers05](#Meyers05) §19
+- How should objects of your new type be created and destroyed?
+- How should object initializtion differ from object assignment?
+- What does it mean for objects of your new type to be passed by value?
+- What are the restrictions on legal values for your new type?
+- Does your new type fit into an inheritance graph?
+- What kind of type conversions are allowed for your new type?
+- What operators and functions make sense for the new type?
+- What standard functions should be disallowed?
+- Who should have access to the members of your new type?
+- What is the "undeclared interface" of your new type?
+- How general is your new type?
+- Is a new type really what you need?
 
 
 ### Interface vs. implementation
 
-A class's interface is made up of the public (and protected) functions and data members it exposes.
+A class's interface is made up of the public (and protected) functions and data members it exposes, including non-member functions.
 
 A class's implementation is encapsulated within the class, and includes the private functions and data members.
 
@@ -147,6 +166,44 @@ Always define a non-member function in the same namespace as its related class. 
 If you need type conversions on all parameters to a function (including the one that would otherwise be pointed to by the this pointer), the function must be a non-member. [Meyers05](#Meyers05) §24
 
 
+### Exception guarantees
+
+Provide the strongest possible exception guarantee for each function, and document it. A function can usually offer a guarantee no stronger than the weakest guarantee of the functions it calls. [Meyers05](#Meyers05) §29, [Sutter02](#Sutter02) §22, [Sutter05](#Sutter05) §71
+
+Never make exception safety an afterthought. Exception safety affects a class's design. It is never "just an implementation detail". [Sutter99](#Sutter99) §5
+
+Observe the canonical exception-safety rules:  [Sutter99](#Sutter99) §8-18
+1. Never allow an exception to escape from a destructor or from an overloaded operator delete() or operator delete[](); write every destructor and deallocation function as though it had an exception specification of `throw()` (in C++1, use `nothrow`).
+2. Always use the [RAII Idiom](#RAII) to isolate resource ownership and management.
+3. In each function, take all the code that might emit an exception and do all that work safely off to the side. Only then, when you know that the real work has succeeded, should you modify the program state (and clean up) using only non-throwing operations.
+
+#### No-fail Guarantee
+
+The No-fail Guarantee is the strongest: The function simply cannot fail. The caller doesn't need to check for any errors.
+A prerequisite for any destructor, deallocation function or `swap` function. 
+
+#### Strong Guarantee
+
+The Strong Guarantee is to ensure that failure leaves the program in the (visible) state it was before the call, (unwinding back to that state if necessary) so that nothing has changed in case of failure.
+The immediate caller should check for failures (if it can handle them correctly on that level) but doesn't need to worry about having changed state just by making the failed call.
+
+The Strong Guarantee can often be implemented via copy-and-swap, but the Strong Guarantee is not practical for all functions. [Meyers05](#Meyers05) §29
+
+#### Basic Guarantee
+
+The Basic Guarantee is to ensure that the function either totally succeeds and reaches the intended target state, or it fails and leaves the program in state that is valid (but not predictable).
+The caller needs to check the state on failure and handle it appropriately.
+
+Anything less than the Basic Guarantee is to be considered a bug!
+
+
+### Coding style
+
+Avoid using leading underscore to indicate private members, this form of naming is reserved for the compiler and may cause naming conflicts. [Sutter05](#Sutter05) §0
+
+Keep a class and its non-member function interface in the same namespace. Keep classes and functions in different namespaces if they are not specifically intended to work together. Especially important for templated functions or operators. [Sutter05](#Sutter05) §57 §58
+
+
 Class types
 -----------
 
@@ -257,7 +314,7 @@ Base classes are the building blocks of class hierarchies. They establish interf
         // Virtual functions (protected if needed), defining implementation details
     };
 
-Base classes with a high cost of change should have public functions that are nonvirtual rather than (non-pure) virtual.
+Base classes with a high cost of change should have public functions that are non-virtual rather than (non-pure) virtual.
 Virtual functions should be made private, or protected if derived classes need to be able to call them (see [NVI](#NVI)). Destructors are an exception to this rule. [Sutter05](#Sutter05) §39
 
 Base classes should always be abstract if they don't need to be used as leaf classes in an inheritance hierarchy.
@@ -302,7 +359,7 @@ Traits classes rely on explicit template specialization for different types.
 
 Examples: `std::iterator_traits`, `std::numeric_limits`
 
-**Example implemenations:**
+**Example implementations:**
 
     // Traits class template to determine if a type is void
     template <typename T>
@@ -344,7 +401,7 @@ The C++ standard doesn't guarantee that stateful predicates will work with stand
 Functors that are made adaptable can be used in many more contexts than functors that are not. Making them adaptable simply means to define some of the typedefs `argument_type`, `first_argument_type`, `second_argument_type`, and `result_type`. The conventional way to do so is to inherit from `std::unary_function` or `std::binary_function`, depending on if the functor takes one or two arguments. These base structs are templates, taking either two or three types. The last one is the return type of `operator()`, the first one(s) are its argument type(s).
 When the input parameters are `const` and not pointers, it is conventional to strip off const qualifiers for these types, while for pointers the `const` should be kept. Adaptable functors do not define more than one `operator()` function. [Meyers01](#Meyers01) §40
 
-**Example implemenations:**
+**Example implementations:**
 
     // Lightweight predicate functor
     template <typename T>
@@ -358,7 +415,7 @@ When the input parameters are `const` and not pointers, it is conventional to st
         }
     };
     
-    // Heavy polymorphic functor implemented using Pimpl
+    // Heavy polymorphic functor implemented using [Pimpl]
     template <typename T>
     class Functor : public unary_function<T, void>
     {
@@ -408,7 +465,7 @@ Exception classes can be implemented to define domain-specific exceptions.
 
 Exceptions should be thrown by value and be caught by (const) reference. If re-thrown, it should be done with `throw;` [Meyers96](#Meyers96) §13, [Sutter05](#Sutter05) §73
 
-**Example implemenation:**
+**Example implementation:**
 
     class ExceptionClass : public std:exception
     {
@@ -423,7 +480,7 @@ Exceptions should be thrown by value and be caught by (const) reference. If re-t
         // Destructor
         ~ExceptionClass() throw() {};
     
-        // Virtual functions, often implements Cloning and the Visitor Pattern [Sutter05] §54
+        // Virtual functions, often implements Cloning and the [Visitor Pattern] [Sutter05] §54
     }
 
 
@@ -436,7 +493,7 @@ You can implement policies in various ways as long as you respect the policy int
 
 Because you can mix and match policies, you can achieve a combinatorial set of behaviors by using a small core of elementary components.
 
-**Implementation example:**
+**Example implementation:**
 
     // Policy class for using std::cout to print a message
     class OutputPolicyWriteToCout
@@ -501,7 +558,7 @@ Because you can mix and match policies, you can achieve a combinatorial set of b
 
 A C++ mixin class is a template class that is parameterized on its base class, implementing some specific fragment of functionality. It is intended to be composed with other classes.
 
-**Implementation example:**
+**Example implementation:**
 
     class ConcreteMessage
     {
@@ -545,45 +602,7 @@ A C++ mixin class is a template class that is parameterized on its base class, i
 
 ### Ancillary classes
 
-Ancillary classes support specific idioms. They should be easy to use correctly and hard to use incorrectly.
-
-
-#### RAII classes
-
-Any class that allocates a resource that must be released after use (heap memory, file handle, thread, socket etc.) should be implemented using the RAII idiom (Resource Acquisition Is Initialization): Perform allocation in the constructor (or lazily at the first method call that needs it [Meyers96](#Meyers96) §17), deallocation in the destructor, and either provide a copy constructor and copy assignment operator with valid resource copying semantics or disable both (by making them private and non-implemented). [Meyers05](#Meyers05) §13 §14, [Sutter05](#Sutter05) §13
-
-APIs often require access to raw resources, so RAII classes should provide some means of access to the raw resources they manage. [Meyers05](#Meyers05) §15
-
-**Implementation example**:
-
-    class ResourceManager
-    {
-    private:
-    
-        Resource* resource_; // The managed resource
-    
-    public:
-    
-        ResourceManger()
-        {
-            resource = new Resource(); // Acquisition
-        }
-    
-        ~ResourceManager()
-        {
-            delete resource; // Release
-        }
-    
-        Resource* get() const
-        {
-            return resource_; // Access to raw resource
-        }
-    
-    private:
-    
-        Resource(const Resource&); // No implemenation to disable copying
-        T& operator=(const Resource&); // No implemenation to disable copying
-    }
+Ancillary classes support specific [idioms](#CppIdioms). They should be easy to use correctly and hard to use incorrectly.
 
 
 Class-related keywords
@@ -767,6 +786,9 @@ For a Value class:
 - Make public.
 - Make non-virtual.
 
+For a RAII class:
+- Release the resource in it.
+
 For a Base class:
 - Implementation depends on if clients should be able to delete polymorphically using a pointer to the base class or not. [Meyers05](#Meyers05) §7, [Sutter02](#Sutter02) §27, [Sutter05](#Sutter05) §50
     - Make public for polymorphic deletion, private (protected) otherwise.
@@ -778,7 +800,7 @@ Destructors need to release resources allocated by the class in order to prevent
 
 Destructors must always provide the no-fail guarantee. If a destructor calls a function that may throw, always wrap the call in a try/catch block that prevents the exception from escaping. [Meyers05](#Meyers05) §8, [Meyers96](#Meyers96) §11, [Sutter02](#Sutter02) §19 [Sutter05](#Sutter05) §51
 
-If you write the destructor, you probably need to explicitly write or disable the copy constructor}} and copy assignment operator. [Sutter05](#Sutter05) §52
+If you write the destructor, you probably need to explicitly write or disable the copy constructor and copy assignment operator. [Sutter05](#Sutter05) §52
 
 Always avoid calling virtual functions in destructors. [Sutter05](#Sutter05) §49
 
@@ -860,11 +882,11 @@ Never write a copy assignment operator that relies on a check for self-assignmen
 
 ### swap
 
-Provide a no-fail `swap()` function to efficiently and infallably swap the contents of this object with another's. It has many potential uses (primarily in Value classes), e.g. to implement assignment easily while maintaining the strong exception guarantee for objects composed of other objects that provide the strong guarantee. [Meyers05](#Meyers05) §25, [Sutter99](#Sutter99) §12 [Sutter02](#Sutter02) §22 [Sutter05](#Sutter05) §56
+Provide a no-fail `swap()` function to efficiently and infallably swap the contents of this object with another's. It has many potential uses (primarily in Value classes), e.g. to implement assignment easily while maintaining the strong exception guarantee for objects composed of other objects that provide the Strong Guarantee. [Meyers05](#Meyers05) §25, [Sutter99](#Sutter99) §12 [Sutter02](#Sutter02) §22 [Sutter05](#Sutter05) §56
 
 If you offer a member `swap`, also offer a non-member `swap` that calls the member. For classes (not templates), specialize `std::swap` too. When calling `swap`, employ a `using` declaration for `std::swap`, then call `swap` without namespace qualification. It's fine to totally specialize `std` templates for user-defined types, but never try to add something completely new to `std`. [Meyers05](#Meyers05) §25
 
-**Example implemenation:**
+**Example implementation:**
 
     class Derived : public Base
     {
@@ -938,7 +960,7 @@ When overloading operators, provide multiple versions with different argument ty
 
 #### operator=
 
-When implementing the assignment operator, make it nonvirtual and with a specific signature, returning a reference to *this: [Meyers05](#Meyers05) §10, [Sutter05](#Sutter05) §55
+When implementing the assignment operator, make it non-virtual and with a specific signature, returning a reference to *this: [Meyers05](#Meyers05) §10, [Sutter05](#Sutter05) §55
 - Classic version: `T& operator=(const T&);`
 - Optimizer-friendly: `T& operator=(T);`
 
@@ -1022,6 +1044,11 @@ Don't return const in the postfix versions (used to be good advice but in C++11 
 
 The streaming operators, `operator<<` and `operator>>` are always implemented as non-member functions. [Sutter05](#Sutter05) §57
 
+
+#### operator[]
+
+The index operator `operator[]` is often used to provide array-like access syntax for user-defined classes. STL implements `operator[]` in the `std::string` and `std::map` classes. `std::string` simply returns a character reference as a result of `operator[]` whereas `std::map` returns a reference to the value given its key. In both cases, the returned reference can be directly read or written to.
+The `std::string` and `std::map` classes have no knowledge or has no control over whether the reference is used for reading or for modification. Sometimes, however, it is useful to detect how the value is being used. In this case, `operator[]` is often implemented to distinguish reads from writes by returning a proxy object. [Meyers96](#Meyers96) §30
 
 #### operator&, operator||, operator,
 
@@ -1115,8 +1142,262 @@ Operators that take the form `operator typename() const;`, where "typename" is t
 Usually this type of operator should be avoided, because it may lead to unexpected and unwanted uses, which are difficult to diagnose. [Meyers96](#Meyers96) §5
 
 
+<a name="CppIdioms"></a>
 C++ idioms
 ----------
+
+<a name="RAII"></a>
+#### RAII
+
+Any class that allocates a resource that must be released after use (heap memory, file handle, thread, socket etc.) should be implemented using the RAII Idiom (Resource Acquisition Is Initialization):
+- Perform allocation/acquisition in the constructor (or lazily at the first method call that needs it. [Meyers96](#Meyers96) §17)
+- Perform deallocation/release in the destructor.
+- Either provide a copy constructor and copy assignment operator with valid resource copying semantics or disable both (by making them private and non-implemented). [Meyers05](#Meyers05) §13 §14, [Sutter05](#Sutter05) §13
+
+APIs often require access to raw resources, so RAII classes should provide some means of access to the raw resources they manage. [Meyers05](#Meyers05) §15
+
+**Example implementation**:
+
+    class ResourceManager
+    {
+    private:
+    
+        Resource* resource_; // The managed resource
+    
+    public:
+    
+        ResourceManger()
+        {
+            resource = new Resource(); // Acquisition
+        }
+    
+        ~ResourceManager()
+        {
+            delete resource; // Release
+        }
+    
+        Resource* get() const
+        {
+            return resource_; // Access to raw resource
+        }
+    
+    private:
+    
+        Resource(const Resource&); // No implementation to disable copying
+        T& operator=(const Resource&); // No implementation to disable copying
+    }
+
+
+<a name="Pimpl"></a>
+### Pimpl
+
+When it makes sense to completely hide internal implementation, the Pimpl (Pointer to implementation) idiom should be used. It minimizes compiler dependencies, separates interface from implementation and adds portability. The downside is that it adds complexity. [Sutter05](#Sutter05) §43
+
+Pimpl is useful to supress class member constructor exceptions when the class' own constructor should never be allowed to throw. [Sutter02](#Sutter02) §18
+
+**Example implementation:**
+
+    // Foo.hpp:
+    class Foo
+    {
+    public:
+    
+        void bar();
+    
+    private:
+    
+        struct FooImpl;
+        shared_ptr<FooImpl> pimpl_;
+    };
+
+    // Foo.cpp:
+    struct FooImpl()
+    {
+        void bar()
+        {
+            // Do something, the actual implementation
+        }
+    };
+    
+    void Foo::bar()
+    {
+        pimpl_->bar(); // Calling the implementation
+    }
+
+
+<a name="Visitor"></a>
+### Visitor Pattern
+
+The Visitor Pattern allows adding functionality to a set of classes without "polluting" them with a lot of extra responsibilities, and without having to perform type checking to call the right function for every type. The code for a specific functionality will also be localized to one place.
+
+**Example implementation:**
+
+    // A simple class hierarchy:
+    
+    class Base {};
+    
+    class Foo : public Base {};
+    
+    class Bar : public Base {};
+    
+    class Baz : public Base {};
+
+Now, to add a `log()` functionality to all derived classes, first add an `accept(Visitor)` function to the hierarchy:
+    
+    class Base
+    {
+    public:
+    
+        virtual void accept(Visitor& v) = 0;
+    };
+    
+    class Foo : public Base
+    {
+    public:
+    
+        virtual void accept(Visitor& v) { v.visit(this); }
+    };
+    
+    class Bar : public Base
+    {
+    public:
+    
+        virtual void accept(Visitor& v) { v.visit(this); }
+    };
+    
+    class Baz : public Base
+    {
+    public:
+        virtual void accept(Visitor& v) { v.visit(this); }
+    };
+
+Next, create a `Visitor` base class with a pure virtual `visit()` method for each `Base` type:
+
+    class Visitor
+    {
+    public:
+        virtual void visit(Foo* b) = 0;
+        virtual void visit(Bar* b) = 0;
+        virtual void visit(Baz* b) = 0;
+    };
+
+Finally, create a `LogVisitor` derived class for each derived class with the implementation (we could add more Visitors like this when we need other new functions):
+
+    class LogVisitor : public Visitor
+    {
+    public:
+        void visit(Foo* b)
+        {
+            cout << "Logging" << b->fooFunction();
+        }
+    
+        void visit(Bar* b)
+        {
+            cout << "Logging" << b->barFunction();
+        }
+    
+        void visit(Baz* b)
+        {
+            cout << "Logging" << b->bazFunction();
+        }
+    };
+
+Usage example:
+
+    void doLogging(Base* b)
+    {
+        LogVisitor v; // The Visitor we use for logging
+        b->accept(v); // Do the logging on whatever derived type object we got
+    }
+
+
+<a name="NVI"></a>
+### NVI
+
+Classes designed using the NVI pattern (Non-Virtual Interface) can be useful for perform pre-post operations on code fragments, such as invariant checking, locks etc.
+
+**Example implementation:**
+
+    class Base
+    {
+    private:
+    
+        ReaderWriterLock lock_;
+        SomeComplexDataType data_;
+    
+    public:
+    
+        void read_from(std::istream& in) // Note: non-virtual
+        {
+            lock_.acquire();
+            assert(data_.check_invariants() == true); // must be true
+            read_from_impl(in);
+            assert(data_.check_invariants() == true); // must be true
+            lock_.release();
+        }
+    
+        void write_to(std::ostream& out) const // Note: non-virtual
+        {
+            lock_.acquire();
+            write_to_impl(out);
+            lock_.release();
+        }
+    
+        virtual ~Base() {} // Virtual because Base is a polymorphic base class.
+    
+    private:
+    
+        virtual void read_from_impl(std::istream&) = 0;
+        virtual void write_to_impl(std::ostream&) const = 0;
+    };
+    
+    class XMLReaderWriter : public Base
+    {
+    private:
+    
+        virtual void read_from_impl (std::istream&) // Note: Not part of the client interface!
+        {
+            // Read XML.
+        }
+    
+        virtual void write_to_impl (std::ostream&) const // Note: Not part of the client interface!
+        {
+            // Write XML.
+        }
+    };
+    
+    class TextReaderWriter : public Base
+    {
+    private:
+    
+        virtual void read_from_impl (std::istream&) { ... }
+        virtual void write_to_impl (std::ostream&) const { ... }
+    };
+
+
+<a name="EBO"></a>
+### Empty Base Optimization
+
+In order to ensure object identity, empty classes in C++ don't take 0 bytes of memory, but C++ allows compilers to optimize memory usage when inheriting from them to ensure that they don't take any extra space. `boost::compressed_pair` is an example of using the Empty Base Optimization to save space.
+
+**Example implementation:**
+
+    class E1 {};
+    class E2 {};
+    
+    // without EBCO
+    class Foo
+    {
+        E1 e1;
+        E2 e2;
+        int data;
+    }; // sizeof(Foo) = 8
+    
+    // with EBCO
+    class Bar : private E1, private E2
+    {
+        int data;
+    }; // sizeof(Bar) = 4
 
 
 References
