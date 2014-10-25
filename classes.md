@@ -1,6 +1,7 @@
 C++ classes quick reference
 ===========================
 
+
 General class design guidelines
 -------------------------------
 
@@ -37,6 +38,7 @@ Compositioning is to embed a member variable of one class within another class, 
 Composition has meanings completely different from that of public inheritance. In the application domain, composition means "has-a", in the implementation domain, it means "is-implemented-in-terms-of". [Meyers05](#Meyers05) §38
 
 Prefer composition to implementing base classes, it minimizes coupling. [Sutter02](#Sutter02) §23, [Sutter05](#Sutter05) §34
+
 
 ### Inheritance guidelines
 
@@ -108,17 +110,448 @@ Try to avoid multiple inheritance of more than one class that is not an abstract
 - Virtual inheritance imposes costs in size, speed, and complexity of initialization and assignment. It's most practical when virtual base classes have no data.
 - Multiple inheritance does have legitimate uses. One scenario involves combining public inheritance from an Interface class with private inheritance from a class that helps with implementation.
 
+
 Class types
 -----------
+
+C++ classes come in many flavors, and depending on which one you want to implement, different rules apply. Without being clear about what type of class you want, you are not likely to implement it correctly. [Sutter05](#Sutter05) §32
+
+A class shold neatly fall into one of these categories. If it doesn't it is probably a sign that the class is doing too much and should be divided into multiple classes.
+
+
+### Value classes
+
+Value classes are intended to be used as concrete classes, not as base classes. They should be modelled after built-in types and usually be instantiated on the stack or as directly held members of other classes. [Sutter05](#Sutter05) §32
+
+Example: `std::vector`
+
+**Implementation:**
+
+    class ValueClass
+    {
+    public:
+        // Copy-constructor: Public and non-virtual
+        ValueClass(const ValueClass& rhs) {}
+    
+        // Copy assignment operator: Public and non-virtual
+        ValueClass& operator=(const ValueClass& rhs) {}
+    
+        // Destructor: Public and non-virtual [Meyers05](#Meyers05) §7
+        ~ValueClass() {}
+    
+        // Assignment operator with value semantics
+        ValueClass& operator=(const ValueClass& rhs) {}
+    
+        // No virtual functions!
+    };
+
+Never use a value class as a base class! [Sutter05](#Sutter05) §35
+
+
+#### Aggregates
+
+Aggregates are a special case of value classes that also have:
+- No user-declared constructors.
+- No private or protected non-static data members.
+- No base classes.
+- No virtual functions.
+
+They hold a collection of values, and don't pretend to encapsulate or provide any behavior. C-style structs are aggregates in C++. So are arrays.
+
+Example: `std::pair`
+
+**Implementation:**
+
+    struct Aggregate
+    {
+        std::string member1;
+        SomeClass member2;
+    };
+
+By default, reserve usage of the "struct" keyword for aggregates, because it requires no extra syntax for them and makes the intent clear.
+
+Aggregates can be instantiated with curly braces:
+
+    Aggregate a1 = {};
+    Aggregate a2 = {1, 2};
+
+
+#### POD-structs
+
+POD-structs (Plain Old Data) are a special case of aggregates that also have:
+- No non-static data members that are non-POD-structs, non-POD-unions (or arrays of such types) and no reference members.
+- No user-defined assignment operator.
+- No user-defined destructor.
+
+
+**Implementation:**
+
+    struct PodStruct
+    {
+        int member1;
+        AnotherPodStruct member2[3];
+    };
+
+POD-structs are typically compatible with C-style structs.
+
+
+### Base classes
+
+Base classes are the building blocks of class hierarchies. They establish interfaces through virtual functions. They are usually instantiated dynamically on the heap as part of a concrete derived class object, and used via a (smart) pointer.
+
+**Implementation:**
+
+    class BaseClass
+    {
+    public:
+    
+        // Destructor allowing polymorphic deletion
+        virtual ~BaseClass() {}
+    
+        // Non-virtual functions, defining interface
+    
+    private:
+    
+        // Copy constructor not implemented to disable copying
+        ValueClass(const ValueClass& rhs);
+    
+        // Copy assignment operator not implemented to disable copying
+        ValueClass& operator=(const ValueClass& rhs);
+    
+        // Virtual functions (protected if needed), defining implementation details
+    };
+
+Base classes with a high cost of change should have public functions that are nonvirtual rather than (non-pure) virtual. Virtual functions should be made private, or protected if derived classes need to be able to call them (see [NVI](#NVI)). Destructors are an exception to this rule. [Sutter05](#Sutter05) §39
+
+Base classes should always be abstract if they don't need to be used as leaf classes in an inheritance hierarchy. If a base class is concrete because some aspects of it require it to be, while it's also used to implement common functionality of derived classes, separate out the common parts into an abstract base class and make the original base class inherit from that along with the other leaf classes. [Meyers96](#Meyers96) §33
+
+Normally, base class destructors should be public and virtual. To prevent polymorphic deletion through base class pointers, make the destructor non-virtual and protected. [Sutter02](#Sutter02) §27
+
+Not all base classes are designed to be used polymorphically. Examples are the standard container types. As a result, they don't need virtual destructors. [Meyers05](#Meyers05) §7
+
+
+### Abstract interfaces
+
+Abstract interfaces are classes made up entirly of (pure) virtual functions and containing no state. Usually they don't have any member function implementations.
+
+**Implementation:**
+
+    class Interface
+    {
+    public:
+    
+        // Public virtual destructor to allow polymorphic deletion. [Sutter02](#Sutter02) §27
+        virtual ~Interface () = 0;
+    
+        // Only pure virtual interface functions.
+        virtual SomeType interfaceFunction() = 0;
+    
+        // No data members!
+    };
+
+
+### Traits classes
+
+Traits classes are templates that carry information about types. They contain only typedefs and static functions, and have no modifiable state or virtual functions. Traits classes make information about types available during compilation (as opposed to virtual functions or function pointers). In conjunction with overloading, traits classes make it possible to perform compile-time if...else tests on types. [Meyers05](#Meyers05) §47, [Sutter02](#Sutter02) §4 [Sutter05](#Sutter05) §32
+
+> Think of a trait as a small object whose main purpose is to carry information used by another object or algorithm to determine "policy" or "implementation details"
+> -- <cite>Bjarne Stroustrup</cite>
+
+Traits classes can solve the problem of generalizing functions on different types when templates alone aren't sufficient (because of different behavior) and you cannot use class polymorphism (because the types are primitive). Traits classes rely on explicit template specialization for different types.
+
+Examples: `std::iterator_traits`, `std::numeric_limits`
+
+**Example implemenations:**
+
+    // Traits class template to determine if a type is void
+    template <typename T>
+    struct is_void
+    {
+       static const bool value = false;
+    };
+    
+    // Template specialization for void
+    template <>
+    struct is_void<void>
+    {
+        static const bool value = true;
+    };
+    
+    is_void<void>(); // true
+    is_void<int>();  // false
+    
+    // Traits class with typedef:
+    template <typename T>
+    struct collection_traits
+    {
+        typedef std::vector<T> collection_type;
+    };
+    
+    SomeClass<collection_traits>() item;
+    SomeClass::collection_type items; 
+
+
+### Functor classes
+
+A functor is a class modelled after function pointers. The convention in STL is to pass functors by value. Therefore, they should be lightweight and have valid copy-semantics. They also need to be monomorphic, i.e. not use virtual functions. State and polymorphism can be implemented using the [Pimpl idiom](#Pimpl). [Meyers01](#Meyers01) §38
+
+Functors that are predicates (i.e. return bool or something that can be implicitly converted into bool) should be pure functions, i.e. their return value should only depend on the input values and not some internal state. Defining `operator()` `const` is necessary for predicates, but internally they must also avoid accessing mutable data members, non-const local static objects, non-const objects at namespace scope and non-const global objects. The C++ standard doesn't guarantee that stateful predicates will work with standard algorithms! [Meyers01](#Meyers01) §39 [Sutter02](#Sutter02) §3
+
+Functors that are made adaptable can be used in many more contexts than functors that are not. Making them adaptable simply means to define some of the typedefs `argument_type`, `first_argument_type`, `second_argument_type`, and `result_type`. The conventional way to do so is to inherit from `std::unary_function` or `std::binary_function`, depending on if the functor takes one or two arguments. These base structs are templates, taking either two or three types. The last one is the return type of `operator()`, the first one(s) are its argument type(s). When the input parameters are `const` and not pointers, it is conventional to strip off const qualifiers for these types, while for pointers the `const` should be kept. Adaptable functors do not define more than one operator() function. [Meyers01](#Meyers01) §40
+
+**Example implemenations:**
+
+    // Lightweight predicate functor
+    template <typename T>
+    class Predicate : public unary_function<T, bool>
+    {
+    public:
+    
+        bool operator()(const T& value) const
+        {
+            return value.fulfillsPredicate();
+        }
+    };
+    
+    // Heavy polymorphic functor implemented using Pimpl
+    template <typename T>
+    class Functor : public unary_function<T, void>
+    {
+    public:
+    
+        void operator()(const T& value) const
+        {
+            pimpl_->operator()(value);
+        }
+    
+    private:
+    
+        FunctorImpl<T> *pimpl_;
+    };
+    
+    // The implementation class, holding state
+    template <typename T>
+    class FunctorImpl : public unary_function<T, void>
+    {
+    private:
+    
+        // Some heavy state
+        Widget w_;
+        int x_;
+    
+        virtual ~FunctorImpl(); // Polymorphic classes need virtual destructors
+    
+        virtual void operator()(const T& value) const;
+    
+        friend class Functor<T>;
+    };
+
+To accept a functor as argument, a function needs to be defined as a template:
+
+    template <typename F>
+    void foo(F functor)
+    {
+        functor(...);
+    }
+
+Such a function can accept both function pointers (`&fun`), functors (`fun()`) and lambdas (`[]() { ... }`)).
+
+
+### Exception classes
+
+Exception classes can be implemented to define domain-specific exceptions.
+
+Exceptions should be thrown by value and be caught by (const) reference. If re-thrown, it should be done with `throw;` [Meyers96](#Meyers96) §13, [Sutter05](#Sutter05) §73
+
+**Example implemenation:**
+
+    class ExceptionClass : public std:exception
+    {
+    public:
+    
+        // No-fail constructor
+        ExceptionClass() {}
+    
+        // No-fail copy constructor (throwing from this would abort the program!) [Sutter05](#Sutter05) §32
+        ExceptionClass(const ExceptionClass& rhs) {}
+    
+        // Destructor
+        ~ExceptionClass() throw() {};
+    
+        // Virtual functions, often implements Cloning and the Visitor pattern [Sutter05](#Sutter05) §54
+    }
+
+
+### Policy classes
+
+Policy classes (normally templates) are fragments of pluggable behavior. They are not usually instantiated standalone but as a base or member of another class. They may or may not have state or virtual functions.
+
+In brief, policy-based class design fosters assembling a class (called the host) with complex behavior out of many little classes (called policies), each of which takes care of only one behavioral or structural aspect. As the name suggests, a policy establishes an interface pertaining to a specific issue. You can implement policies in various ways as long as you respect the policy interface.
+
+Because you can mix and match policies, you can achieve a combinatorial set of behaviors by using a small core of elementary components.
+
+**Implementation example:**
+
+    // Policy class for using std::cout to print a message
+    class OutputPolicyWriteToCout
+    {
+    protected:
+    
+        template <typename MessageType>
+        void print(MessageType const& message) const
+        {
+            std::cout << message << std::endl;
+        }
+    };
+    
+    // Policy class for the "Hello World!" message in English
+    class LanguagePolicyEnglish
+    {
+    protected:
+    
+        std::string message() const
+        {
+            return "Hello, World!";
+        }
+    };
+    
+    // Policy class for the "Hello World!" message in German
+    class LanguagePolicyGerman
+    {
+    protected:
+    
+        std::string message() const
+        {
+            return "Hallo Welt!";
+        }
+    };
+    
+    // Host class, accepting two different policies
+    template <typename OutputPolicy, typename LanguagePolicy>
+    class HelloWorld : private OutputPolicy, private LanguagePolicy
+    {
+        using OutputPolicy::print;
+        using LanguagePolicy::message;
+    
+    public:
+    
+        // Behaviour method
+        void run() const
+        {
+            // Two policy methods
+            print(message());
+        }
+    };
+    
+    typedef HelloWorld<OutputPolicyWriteToCout, LanguagePolicyEnglish> HelloWorldEnglish;
+    HelloWorldEnglish hello_world;
+    hello_world.run(); // prints "Hello, World!"
+    
+    typedef HelloWorld<OutputPolicyWriteToCout, LanguagePolicyGerman> HelloWorldGerman;
+    HelloWorldGerman hello_world2;
+    hello_world2.run(); // prints "Hallo Welt!"
+
+
+### Mixin classes
+
+A C++ mixin class is a template class that is parameterized on its base class, implementing some specific fragment of functionality. It is intended to be composed with other classes.
+
+**Implementation example:**
+
+    class ConcreteMessage
+    {
+    public:
+    
+        void print()
+        {
+          cout << "Hello!";
+        }
+    };
+    
+    template<typename T>
+    class BoldMixin : public T
+    {
+    protected:
+    
+        void print()
+        {
+            cout << "<b>";
+            T::print();
+            cout << "</b>";
+        }
+    };
+    
+    template<typename T>
+    class ItalicMixin : public T
+    {
+    protected:
+    
+        void print()
+        {
+            cout << "<i>";
+            T::print();
+            cout << "</i>";
+        }
+    };
+    
+    ConcreteMessage<ItalicMixin<BoldMixin> > italicAndBold;
+    italicAndBold.print(); // Prints the concrete message in italic and bold.
+
+
+### Ancillary classes
+
+Ancillary classes support specific idioms. They should be easy to use correctly and hard to use incorrectly.
+
+
+#### RAII classes
+
+Any class that allocates a resource that must be released after use (heap memory, file handle, thread, socket etc.) should be implemented using the RAII idiom (Resource Acquisition Is Initialization): Perform allocation in the constructor (or lazily at the first method call that needs it [Meyers96](#Meyers96) §17), deallocation in the destructor, and either provide a copy constructor and copy assignment operator with valid resource copying semantics or disable both (by making them private and non-implemented). [Meyers05](#Meyers05) §13 §14, [Sutter05](#Sutter05) §13
+
+APIs often require access to raw resources, so RAII classes should provide some means of access to the raw resources they manage. [Meyers05](#Meyers05) §15
+
+**Implementation example**:
+
+    class ResourceManager
+    {
+    private:
+    
+        Resource* resource_; // The managed resource
+    
+    public:
+    
+        ResourceManger()
+        {
+            resource = new Resource(); // Acquisition
+        }
+    
+        ~ResourceManager()
+        {
+            delete resource; // Release
+        }
+    
+        Resource* get() const
+        {
+            return resource_; // Access to raw resource
+        }
+    
+    private:
+    
+        Resource(const Resource&); // No implemenation to disable copying
+        T& operator=(const Resource&); // No implemenation to disable copying
+    }
+
 
 Class-related keywords
 ----------------------
 
+
 Functions with special semantics
 --------------------------------
 
+
 C++ idioms
 ----------
+
 
 References
 ----------
