@@ -2,7 +2,7 @@ C++ classes quick reference
 ===========================
 
 This document is a collection of design guidelines for C++ classes. It is intended to be used as a quick reference when designing new classes or refactoring old ones.
-For brevity and simplicity of use, it does not discuss at length the *why's* of the guidelines, but instead presents references to further reading about the subject.
+For brevity and simplicity of use, it does not discuss at length the *whys* of the guidelines, but instead presents references to further reading about the subject.
 
 The guidelines are currently focused on C++98 use but features some notes about later versions.
 
@@ -14,7 +14,7 @@ When deciding how to design a C++ class, there are several considerations to tak
 
 Treat class design as type design. Before defining a new type, be sure to consider all these issues: [Meyers05](#Meyers05) §19
 - How should objects of your new type be created and destroyed?
-- How should object initializtion differ from object assignment?
+- How should object initialization differ from object assignment?
 - What does it mean for objects of your new type to be passed by value?
 - What are the restrictions on legal values for your new type?
 - Does your new type fit into an inheritance graph?
@@ -27,7 +27,7 @@ Treat class design as type design. Before defining a new type, be sure to consid
 - Is a new type really what you need?
 
 
-### Interface vs. implementation
+### Interface vs. Implementation
 
 A class's interface is made up of the public (and protected) functions and data members it exposes, including non-member functions.
 
@@ -51,9 +51,9 @@ By default, classes should never provide functions that return handles to intern
 The exception is if compatibility with existing (legacy) code is necessary, and then the reasoning behind these exceptions should be clearly documented. [Sutter05](#Sutter05) §42
 
 
-### Composition vs. inheritance
+### Composition vs. Inheritance
 
-Compositioning is to embed a member variable of one class within another class, and use the member in ways that make sense to the outer class (like providing passthrough functions to some of the inner class' interface).
+Compositioning is to embed a member variable of one class within another class, and use the member in ways that make sense to the outer class (like providing pass-through functions to some of the inner class' interface).
 
 Composition has meanings completely different from that of public inheritance. In the application domain, composition means "has-a", in the implementation domain, it means "is-implemented-in-terms-of". [Meyers05](#Meyers05) §38
 
@@ -83,7 +83,7 @@ Inheritance in C++ comes in three flavors:
 Use private inheritance instead of composition only when absolutely necessary, which means when: [Sutter99](#Sutter99) §15
 - You need access to the class's protected members.
 - You need to override a virtual function.
-- The object needs to be constructed before other base subobjects.
+- The object needs to be constructed before other base sub-objects.
 
 Never use public inheritance except to model true Liskow IS-A and WORKS-LIKE-A. All overridden member functions must require no more and promise no less. [Sutter99](#Sutter99) §22
 
@@ -113,7 +113,7 @@ Inheritance should be used only when: [Sutter05](#Sutter05) §34
 -   You need to access a protected member (non-public inheritance).
     This applies to protected member functions in general, and to protected constructors in particular.
 -   You need to construct the used object before, or destroy it after, a base class.
-    This can be necessary when the used class provides a lock of some sort, such as a critical section or a database transaction, which must cover the entire lifetime of another base subobject.
+    This can be necessary when the used class provides a lock of some sort, such as a critical section or a database transaction, which must cover the entire lifetime of another base sub-object.
 -   You need to share a common virtual base class, or override the construction of a virtual base class (non-public inheritance).
     The first part applies if the using class has to inherit from one of the same virtual bases as the used class. If it does not, the second part may still apply: The most-derived class is responsible for initializing all virtual base classes, and so if you need to use a different constructor or different constructor parameters for a virtual base, then you must inherit.
 -   You benefit from the Empty Base Optimization and it matters to the program (non-public inheritance).
@@ -214,7 +214,7 @@ A class shold neatly fall into one of these categories. If it doesn't it is prob
 
 ### Value classes
 
-Value classes are intended to be used as concrete classes, not as base classes. They should be modelled after built-in types and usually be instantiated on the stack or as directly held members of other classes. [Sutter05](#Sutter05) §32
+Value classes are intended to be used as concrete classes, not as base classes. They should be modeled after built-in types and usually be instantiated on the stack or as directly held members of other classes. [Sutter05](#Sutter05) §32
 
 Example: `std::vector`
 
@@ -391,7 +391,7 @@ Examples: `std::iterator_traits`, `std::numeric_limits`
 
 ### Functor classes
 
-A functor is a class modelled after function pointers. The convention in STL is to pass functors by value. Therefore, they should be lightweight and have valid copy-semantics. They also need to be monomorphic, i.e. not use virtual functions.
+A functor is a class modeled after function pointers. The convention in STL is to pass functors by value. Therefore, they should be lightweight and have valid copy-semantics. They also need to be monomorphic, i.e. not use virtual functions.
 State and polymorphism can be implemented using the [Pimpl idiom](#Pimpl). [Meyers01](#Meyers01) §38
 
 Functors that are predicates (i.e. return bool or something that can be implicitly converted into bool) should be pure functions, i.e. their return value should only depend on the input values and not some internal state. 
@@ -538,7 +538,7 @@ Because you can mix and match policies, you can achieve a combinatorial set of b
     
     public:
     
-        // Behaviour method
+        // Behavior method
         void run() const
         {
             print(message()); // Two policy methods
@@ -634,7 +634,7 @@ These keywords may refer to class member access levels, or the form of inheritan
 
 `protected` is no more encapsulated than public! (see `using`). [Meyers05](#Meyers05) §22
 
-Declare data members private. It gives clients syntactically uniform access to data, affords fine-grained acess control, allows invariants to be enforced, and offers class authors implementation flexibility. [Meyers05](#Meyers05) §22
+Declare data members private. It gives clients syntactically uniform access to data, affords fine-grained access control, allows invariants to be enforced, and offers class authors implementation flexibility. [Meyers05](#Meyers05) §22
 
 
 ### const
@@ -650,7 +650,7 @@ When const and non-const member functions have essentially identical implementat
 
 a "pure virtual" function is one declared as `virtual f() = 0;` and forces derived classes to provide an implementation if they are not to be abstract classes themselves.
 
-`virtual` can also be used before the name of the base class in a derived class defintion to implement virtual inheritance, solving the diamond inheritance problem of having multiple base class versions of the same function.
+`virtual` can also be used before the name of the base class in a derived class definition to implement virtual inheritance, solving the diamond inheritance problem of having multiple base class versions of the same function.
 Under virtual inheritance, a copy of the base class will not be included in the derived class and accessed directly. Instead, it will contain a (virtual) pointer to the base class so that further derived classes can inherit from multiple classes with the same base, and not get multiple, ambiguous implementations of inherited functions.
 The constructor of a base class will not be called when inherited virtually, instead it will be called by the next class that inherits non-virtually from it.
 
@@ -759,13 +759,13 @@ For an Exception class:
 - Make impossible to fail.
 
 For a RAII class:
-- Allocate the resource in it (or do setup for lazy alloction later).
+- Allocate the resource in it (or do setup for lazy allocation later).
 
 The default constructor is the one that takes no arguments. If possible, one should be defined by the class (must be done explicitly if other constructors are defined) because otherwise the class will not be usable in arrays and STL containers, and in virtual base classes the lack of one means all derived classes must explicitly define all the base class's arguments. [Meyers96](#Meyers96) §4
 
 If the constructor can take exactly one argument (default values may allow this for multi-argument constructors), use the `explicit` keyword to prevent implicit type conversion (almost always unwanted). [Meyers96](#Meyers96) §5, [Sutter05](#Sutter05) §40
 
-Initialize using the initalization list rather than in the constructor body, except if you perform unmanaged resource acquisition (such as `new` expressions not immediately passed to a smart pointer). [Meyers05](#Meyers05) §4, [Sutter02](#Sutter02) §18 [Sutter05](#Sutter05) §9 §48
+Initialize using the initialization list rather than in the constructor body, except if you perform unmanaged resource acquisition (such as `new` expressions not immediately passed to a smart pointer). [Meyers05](#Meyers05) §4, [Sutter02](#Sutter02) §18 [Sutter05](#Sutter05) §9 §48
 
 Always initialize arguments in the initialization list in the same order as they are declared in the class. [Meyers05](#Meyers05) §4, [Sutter05](#Sutter05) §47
 
@@ -773,7 +773,7 @@ Always avoid calling virtual functions in constructors. [Sutter05](#Sutter05) §
 
 Prevent possible resource leaks in constructors by catching all possible exceptions during allocation and releasing previously allocated resources. The destructor will not be called if the constructor fails. [Meyers96](#Meyers96) §10 [Sutter02](#Sutter02) §18
 
-Constructor function try blocks (i.e. try/catch around the initialization list + body) are useful to translate exceptions thrown by any subobject constructor into a different exception, but they must (re)throw something. They are not useful for any other type of function. [Sutter02](#Sutter02) §18
+Constructor function try blocks (i.e. try/catch around the initialization list + body) are useful to translate exceptions thrown by any sub-object constructor into a different exception, but they must (re)throw something. They are not useful for any other type of function. [Sutter02](#Sutter02) §18
 
 If the class legally can have "optional" members that may throw during construction but should not prevent class construction, use the [Pimpl Idiom](#Pimpl) to group such individual members. [Sutter02](#Sutter02) §18
 
@@ -882,7 +882,7 @@ Never write a copy assignment operator that relies on a check for self-assignmen
 
 ### swap
 
-Provide a no-fail `swap()` function to efficiently and infallably swap the contents of this object with another's. It has many potential uses (primarily in Value classes), e.g. to implement assignment easily while maintaining the strong exception guarantee for objects composed of other objects that provide the Strong Guarantee. [Meyers05](#Meyers05) §25, [Sutter99](#Sutter99) §12 [Sutter02](#Sutter02) §22 [Sutter05](#Sutter05) §56
+Provide a no-fail `swap()` function to efficiently and infallibly swap the contents of this object with another's. It has many potential uses (primarily in Value classes), e.g. to implement assignment easily while maintaining the strong exception guarantee for objects composed of other objects that provide the Strong Guarantee. [Meyers05](#Meyers05) §25, [Sutter99](#Sutter99) §12 [Sutter02](#Sutter02) §22 [Sutter05](#Sutter05) §56
 
 If you offer a member `swap`, also offer a non-member `swap` that calls the member. For classes (not templates), specialize `std::swap` too. When calling `swap`, employ a `using` declaration for `std::swap`, then call `swap` without namespace qualification. It's fine to totally specialize `std` templates for user-defined types, but never try to add something completely new to `std`. [Meyers05](#Meyers05) §25
 
@@ -985,7 +985,7 @@ The binary arithmetic operators are:
 - `operator<<`
 - `operator>>`
 
-If implementing one of these, implement its corresponding compound assignment operator as well, and implement it in terms of that (except if that modifies the left-hand side so signifcantly that it is more advantageous to do the reverse, e.g. in the case of multiplicaton of complex numbers). [Meyers96](#Meyers96) §22, [Sutter05](#Sutter05) §27
+If implementing one of these, implement its corresponding compound assignment operator as well, and implement it in terms of that (except if that modifies the left-hand side so significantly that it is more advantageous to do the reverse, e.g. in the case of multiplication of complex numbers). [Meyers96](#Meyers96) §22, [Sutter05](#Sutter05) §27
 
 
 #### Compound assignment operators
@@ -1063,13 +1063,13 @@ There are many valid reasons for writing custom versions of new and delete, incl
 
 If called like a function (`operator new(size)`), C++ will only allocate memory, not call the object constructor. [Meyers96](#Meyers96) §8
 
-There are three forms of operator new: "plain new", "placement new" and "nothrow new". If implemening your own `operator new`, always provide/implement all three forms. [Meyers05](#Meyers05) §52, [Sutter05](#Sutter05) §46
+There are three forms of operator new: "plain new", "placement new" and "nothrow new". If implementing your own `operator new`, always provide/implement all three forms. [Meyers05](#Meyers05) §52, [Sutter05](#Sutter05) §46
 
 Always implement together with `operator delete`, except for the special in-place form. [Sutter99](#Sutter99) §36 [Sutter05](#Sutter05) §45
 
-`operator new` should contain an infinite loop trying to allocte memory, should call the new-handler if it can't satisfy a memory request, and should handle requests for zero bytes. Class-specific versions should handle requests for larger blocks than expected. [Meyers05](#Meyers05) §51
+`operator new` should contain an infinite loop trying to allocate memory, should call the new-handler if it can't satisfy a memory request, and should handle requests for zero bytes. Class-specific versions should handle requests for larger blocks than expected. [Meyers05](#Meyers05) §51
 
-Always explicitly declare `operator new` and `operator delete` as static functions. They are never nonstatic member functions. [Sutter99](#Sutter99) §36
+Always explicitly declare `operator new` and `operator delete` as static functions. They are never non-static member functions. [Sutter99](#Sutter99) §36
 
 
 ##### plain new:
@@ -1193,7 +1193,7 @@ APIs often require access to raw resources, so RAII classes should provide some 
 
 When it makes sense to completely hide internal implementation, the Pimpl (Pointer to implementation) idiom should be used. It minimizes compiler dependencies, separates interface from implementation and adds portability. The downside is that it adds complexity. [Sutter05](#Sutter05) §43
 
-Pimpl is useful to supress class member constructor exceptions when the class' own constructor should never be allowed to throw. [Sutter02](#Sutter02) §18
+Pimpl is useful to suppress class member constructor exceptions when the class' own constructor should never be allowed to throw. [Sutter02](#Sutter02) §18
 
 **Example implementation:**
 
