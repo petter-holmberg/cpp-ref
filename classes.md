@@ -55,7 +55,7 @@ Inheritance in C++ comes in three flavors:
 
     Private inheritance, models the "has-a", or "is-implemented-in-terms-of" relationship. It's usually inferior to composition, but it makes sense when a derived class needs access to protected base class members or needs to redefine inherited virtual functions. [Meyers05](#Meyers05) §39
 
-    Unlike composition, private inheritance can enable the *Empty Base Optimization*. {19} This can be important for library developers who strive to minimize object sizes. [Meyers05](#Meyers05) §39
+    Unlike composition, private inheritance can enable the [Empty Base Optimization](#EBO). This can be important for library developers who strive to minimize object sizes. [Meyers05](#Meyers05) §39
 
 3.  Protected inheritance
 
@@ -114,6 +114,37 @@ Try to avoid multiple inheritance of more than one class that is not an abstract
 - Multiple inheritance is more complex than single inheritance. It can lead to new ambiguity issues and to the need for virtual inheritance.
 - Virtual inheritance imposes costs in size, speed, and complexity of initialization and assignment. It's most practical when virtual base classes have no data.
 - Multiple inheritance does have legitimate uses. One scenario involves combining public inheritance from an Interface class with private inheritance from a class that helps with implementation.
+
+
+### Non-member, non-friend functions
+
+Non-member, non-friend functions improve encapsulation by minimizing dependencies. Whenever possible, prefer making functions non-member non-friends. [Meyers05](#Meyers05) §23
+
+The standard requires that operators `=` `()`  `->` `[]` and must be members, and class-specific operators `new`, `new[]`, `delete`, and `delete[]` must be static members.
+Use the following algorithm for determining whether a function should be a member and/or friend [Sutter05](#Sutter05) §44, [Sutter99](#Sutter99) §20:
+
+    If: The function is one of the operators =, ->, [], or (), which according to the standard must be members:
+    
+        Make it a member.
+    
+    Else if any of:
+        a) The function needs a different type as its left-hand argument (as do `operator>>`` and `operator<<`, for example).
+        b) The function needs type conversions on its leftmost argument.
+        c) The function can be implemented using the class's public interface alone:
+    
+        Make it a nonmember (and friend if needed in cases a) and b) ).
+    
+        If it needs to behave virtually:
+    
+            Add a virtual member function to provide the virtual behavior, and implement the nonmember in terms of that.
+    
+    Else:
+    
+        Make it a member.
+
+Always define a non-member function in the same namespace as its related class. [Sutter05](#Sutter05) §57
+
+If you need type conversions on all parameters to a function (including the one that would otherwise be pointed to by the this pointer), the function must be a non-member. [Meyers05](#Meyers05) §24
 
 
 Class types
@@ -643,10 +674,11 @@ Introduces a name that is declared elsewhere into the declarative region where t
 
 ### inline
 
-Functions declared `inline` will make the compiler replace calls to it with a copy of the function body, replacing arguments with the call values. This can optimize performance while avoiding code repetition. The compiler probably does this for most small functions not explicitly declared inline anyway.
+Functions declared `inline` will make the compiler replace calls to it with a copy of the function body, replacing arguments with the call values. This can optimize performance while avoiding code repetition.
 
 Limit most inlining to small, frequently called functions. This facilitates debugging and binary upgradability, minimizes potential code bloat, and maximizes the chances of greater program speed.
-Don't declare function templates inline just because they appear in header files. Wait until the linker requires it. [Meyers05](#Meyers05) §30
+Don't second-guess the compiler and declare functions `inline` prematurely. Modern compilers do inlining automatically for most small functions not explicitly declared inline.
+Don't declare function templates inline just because they appear in header files. [Meyers05](#Meyers05) §30
 
 
 ### template
@@ -689,37 +721,398 @@ As a rule of thumb, never ever use it, unless forced to when overriding a base c
 C++11 has deprecated the `throw` keyword. The `noexcept` keyword was added to supersede the empty throw specification.
 
 
-### non-member, non-friend functions
-
-Non-member, non-friend functions improve encapsulation by minimizing dependencies. When possible, prefer making functions non-member non-friends. [Meyers05](#Meyers05) §23
-
-Algorithm for determining whether a function should be a member and/or friend [Sutter05](#Sutter05) §44:
-
-    If: The function is one of the operators =, ->, [], or (), which must be members:
-    
-        Make it a member.
-    
-    Else if any of:
-        a) The function needs a different type as its left-hand argument (as do operators >> or <<, for example).
-        b) The function needs type conversions on its leftmost argument.
-        c) The function can be implemented using the class's public interface alone:
-    
-        Make it a nonmember (and friend if needed in cases a) and b) ).
-    
-        If it needs to behave virtually:
-    
-            Add a virtual member function to provide the virtual behavior, and implement the nonmember in terms of that.
-    
-    Else:
-        Make it a member.
-
-Always define a non-member function in the same namespace as its related class. [Sutter05](#Sutter05) §57
-
-If you need type conversions on all parameters to a function (including the one that would otherwise be pointed to by the this pointer), the function must be a non-member. [Meyers05](#Meyers05) §24
-
-
 Functions with special semantics
 --------------------------------
+
+Functions that tie in to built-in features of C++ require extra special care because they will be expected to work in certain ways. If implemented well, they will make classes much more powerful, but if implemented badly they have the potential to cause unexpected or undefined behavior.
+
+
+### The Big Four
+
+The Big Four functions require special treatment because they will be implemented by the compiler if you do not provide an implementation of your own. Therefore, they should not be implemented if the default compiler implementation is correct, but this choice should always be documented to assure users of your class that you know this is the case and didn't just forget or was unaware of that fact. [Meyers05](#Meyers05) §5
+
+Explicitly disallow the use of compiler-generated functions you do not want, by declaring them private and providing no implementation. [Meyers05](#Meyers05) §6
+
+
+#### Constructor
+
+For an Exception class:
+- Make impossible to fail.
+
+For a RAII class:
+- Allocate the resource in it (or do setup for lazy alloction later).
+
+The default constructor is the one that takes no arguments. If possible, one should be defined by the class (must be done explicitly if other constructors are defined) because otherwise the class will not be usable in arrays and STL containers, and in virtual base classes the lack of one means all derived classes must explicitly define all the base class's arguments. [Meyers96](#Meyers96) §4
+
+If the constructor can take exactly one argument (default values may allow this for multi-argument constructors), use the `explicit` keyword to prevent implicit type conversion (almost always unwanted). [Meyers96](#Meyers96) §5, [Sutter05](#Sutter05) §40
+
+Initialize using the initalization list rather than in the constructor body, except if you perform unmanaged resource acquisition (such as `new` expressions not immediately passed to a smart pointer). [Meyers05](#Meyers05) §4, [Sutter02](#Sutter02) §18 [Sutter05](#Sutter05) §9 §48
+
+Always initialize arguments in the initialization list in the same order as they are declared in the class. [Meyers05](#Meyers05) §4, [Sutter05](#Sutter05) §47
+
+Always avoid calling virtual functions in constructors. [Sutter05](#Sutter05) §49
+
+Prevent possible resource leaks in constructors by catching all possible exceptions during allocation and releasing previously allocated resources. The destructor will not be called if the constructor fails. [Meyers96](#Meyers96) §10 [Sutter02](#Sutter02) §18
+
+Constructor function try blocks (i.e. try/catch around the initialization list + body) are useful to translate exceptions thrown by any subobject constructor into a different exception, but they must (re)throw something. They are not useful for any other type of function. [Sutter02](#Sutter02) §18
+
+If the class legally can have "optional" members that may throw during construction but should not prevent class construction, use the [Pimpl Idiom](#Pimpl) to group such individual members. [Sutter02](#Sutter02) §18
+
+Making the constructor(s) private prevents object instantiation. A function made `friend` of the class, or defined `static` in the class, will be allowed to access the private constructor and can therefore be useful as a means to control object instantiation, by holding static instances inside it. [Meyers96](#Meyers96) §26
+
+
+#### Destructor
+
+For a Value class:
+- Make public.
+- Make non-virtual.
+
+For a Base class:
+- Implementation depends on if clients should be able to delete polymorphically using a pointer to the base class or not. [Meyers05](#Meyers05) §7, [Sutter02](#Sutter02) §27, [Sutter05](#Sutter05) §50
+    - Make public for polymorphic deletion, private (protected) otherwise.
+    - Make virtual for polymorphic deletion, non-virtual otherwise.
+- If a class has any virtual functions, it should have a virtual destructor. [Meyers05](#Meyers05) §7
+- Thinking in the future tense, it's usually best to prefer allowing polymorphic deletion, even if it is not currently required. [Meyers96](#Meyers96) §32
+
+Destructors need to release resources allocated by the class in order to prevent leaks. [Meyers96](#Meyers96) §10
+
+Destructors must always provide the no-fail guarantee. If a destructor calls a function that may throw, always wrap the call in a try/catch block that prevents the exception from escaping. [Meyers05](#Meyers05) §8, [Meyers96](#Meyers96) §11, [Sutter02](#Sutter02) §19 [Sutter05](#Sutter05) §51
+
+If you write the destructor, you probably need to explicitly write or disable the copy constructor}} and copy assignment operator. [Sutter05](#Sutter05) §52
+
+Always avoid calling virtual functions in destructors. [Sutter05](#Sutter05) §49
+
+A destructor implies changing state outside of the object being destroyed. If the object is performing resource allocation, then the compiler generated/supplied methods will be wrong!
+
+
+#### Copy constructor
+
+For a Value class:
+- Make public.
+- Make non-virtual.
+
+For an Exception class:
+- Make impossible to fail.
+
+If you write/disable the copy constructor, also do the same for the copy assignment operator [Sutter05](#Sutter05) §52.
+
+Copy constructors and copy assignment operators should not implement copying in terms of one of the other. Instead, put common functionality in a third function that both call. [Meyers05](#Meyers05) §12
+
+If you write the copy constructor, and allocate or duplicate some resource in it, you should also write a destructor that releases it. [Sutter05](#Sutter05) §52
+
+Copy construction needs to be correct (and should be cheap) for Value classes in order to make them usable in standard containers. [Meyers01](#Meyers01) §3
+
+Abstract base classes can define the copy constructor `explicit` to allow slicing but prevent it from being done by accident. [Sutter05](#Sutter05) §54
+
+Abstract base classes can also define a pure virtual `clone()` function (otherwise known as a virtual copy constructor), returning a pointer to a (deep) copy of the object. This can be used by the normal copy constructor to avoid slicing. [Meyers96](#Meyers96) §25, [Sutter05](#Sutter05) §54
+
+**Example:**
+
+    class NonSliceableComponents
+    {
+    public:
+    
+        // Copy constructor
+        NonSliceableComponents(const NonSliceableComponents& rhs) 
+        {
+            // Deep-copy all components
+            for (list<NonSliceable*>::const_iterator it = rhs.components_.begin(); it != rhs.components_.end(); ++it)
+            {
+                components_.push_back(it->clone());
+            }
+        }
+    
+    private:
+    
+        std::vector<NonSliceableComponent*> components_;
+    };
+    
+    class NonSliceableComponent
+    {
+    public:
+    
+        virtual NonSliceable* clone() const = 0;
+    };
+    
+    class Component : public NonSliceableComponent
+    {
+    public:
+    
+        // Virtual copy constructor, using the normal copy constructor
+        virtual Component* clone() const { return new Derived(*this); }
+    }
+
+
+#### Copy assignment operator
+
+For a Value class:
+- Make public.
+- Make non-virtual.
+
+If you write/disable the copy assignment operator, also do the same for the copy constructor [Sutter05](#Sutter05) §52.
+
+If you write the copy assignment operator, and allocate or duplicate some resource in it, you should also write a destructor that releases it. [Sutter05](#Sutter05) §52
+
+The canonical form for copy assignment implementation is to provide a no-fail `swap()` function and implement copy assignment by creating a temporary, swapping and then returning (see *swap*). [Sutter02](#Sutter02) §22
+
+Never write a copy assignment operator that relies on a check for self-assignment in order to work properly; a copy assignment operator that uses the create-a-temporary-and-swap idiom is automatically both strongly exception-safe and safe for self-assignment. It's all right to use a self-assignment check as an optimization to avoid needless work. [Sutter99](#Sutter99) §38
+
+
+### swap
+
+Provide a no-fail `swap()` function to efficiently and infallably swap the contents of this object with another's. It has many potential uses (primarily in Value classes), e.g. to implement assignment easily while maintaining the strong exception guarantee for objects composed of other objects that provide the strong guarantee. [Meyers05](#Meyers05) §25, [Sutter99](#Sutter99) §12 [Sutter02](#Sutter02) §22 [Sutter05](#Sutter05) §56
+
+If you offer a member `swap`, also offer a non-member `swap` that calls the member. For classes (not templates), specialize `std::swap` too. When calling `swap`, employ a `using` declaration for `std::swap`, then call `swap` without namespace qualification. It's fine to totally specialize `std` templates for user-defined types, but never try to add something completely new to `std`. [Meyers05](#Meyers05) §25
+
+**Example implemenation:**
+
+    class Derived : public Base
+    {
+    private:
+    
+        U member1_;
+        int member2_;
+    
+    public:
+    
+        // Member swap (first swap bases, then members)
+        void swap(T& rhs) // noexcept
+        {
+            using std::swap;
+            B::swap(rhs);                 // Swap base class members (user-defined)
+            member1_.swap(rhs.member1_);  // User-defined, using member version
+            swap(member2_, rhs.member2_); // Built-in, using std::swap
+        }
+    
+        // Copy assignment operator utilizing swap (traditional)
+        T& operator=(const T& other)
+        {
+            T temp(other);
+            swap(temp);
+            return *this;
+        }
+    
+        // Copy assignment operator utilizing swap (pass by value, more elegant in C++03 but ambiguous together with move assignment operator in C++11)
+        T& operator=(T temp)
+        {
+            using std::swap;
+            swap(temp);
+            return *this;
+        }
+    };
+    
+    // Non-member swap as std template specialization
+    namespace std
+    {
+        template <>
+        void swap(T& t1, T& t2)
+        {
+            t1.swap(t2);
+        }
+    }
+    
+    // Template example
+    template<typename T>
+    class X
+    {
+        ...
+        void swap(X<T>& rhs)
+        {
+            ...
+        }
+    };
+    
+    template <typename T>
+    void swap(X<T>& x1, X<T>& x2)
+    {
+        x1.swap(x2);
+    }
+
+
+### Operators
+
+By default, avoid providing implicit conversion operators of the form `operator Type()`. Instead, use named functions (like `std::string`'s `c_str()` function). [Sutter05](#Sutter05) §40
+
+When overloading operators, provide multiple versions with different argument types, when applicable, to prevent wasteful implicit type conversions (e.g. for string comparison) [Sutter05](#Sutter05) §29
+
+
+#### operator=
+
+When implementing the assignment operator, make it nonvirtual and with a specific signature, returning a reference to *this: [Meyers05](#Meyers05) §10, [Sutter05](#Sutter05) §55
+- Classic version: `T& operator=(const T&);`
+- Optimizer-friendly: `T& operator=(T);`
+
+Ensure that operator= is safe for self-assignment. [Meyers05](#Meyers05) §11, [Sutter05](#Sutter05) §55
+
+Explicitly invoke all base assignment operators and assign all data members. [Sutter05](#Sutter05) §55
+
+Don't return const T&, because it prevents objects from being placed in std containers. [Sutter05](#Sutter05) §55
+
+
+#### Binary arithmetic and bitwise operators
+
+The binary arithmetic operators are:
+- `operator+`
+- `operator-`
+- `operator*`
+- `operator/`
+- `operator%`
+- `operator&`
+- `operator|`
+- `operator^`
+- `operator<<`
+- `operator>>`
+
+If implementing one of these, implement its corresponding compound assignment operator as well, and implement it in terms of that (except if that modifies the left-hand side so signifcantly that it is more advantageous to do the reverse, e.g. in the case of multiplicaton of complex numbers). [Meyers96](#Meyers96) §22, [Sutter05](#Sutter05) §27
+
+
+#### Compound assignment operators
+
+The compound assignment operators are:
+- `operator+=`
+- `operator-=`
+- `operator*=`
+- `operator/=`
+- `operator%=`
+- `operator&=`
+- `operator|=`
+- `operator^=`
+- `operator<<=`
+- `operator>>=`
+
+
+#### Increment and decrement operators
+
+The prefix versions (prefer to call these when possible):
+
+    T& T::operator++()
+    {
+        // perform increment
+        return *this;
+    }
+    
+    T& T::operator--()
+    {
+        // perform decrement
+        return *this;
+    }
+
+The postfix versions (implemented in terms of the prefix versions): [Meyers96](#Meyers96) §6, [Sutter99](#Sutter99) §20 [Sutter05](#Sutter05) §28
+
+    T T::operator++(int)
+    {
+        T old(*this);
+        ++*this;
+        return old;
+    }  
+
+    T T::operator--(int)
+    {
+        T old(*this);
+        --*this;
+        return old;
+    }
+
+Prefer use of the prefix versions since they do not require temporaries. [Meyers96](#Meyers96) §6
+
+Don't return const in the postfix versions (used to be good advice but in C++11 this means you cannot take full advantage of rvalue references!)
+
+
+#### Streaming operators
+
+The streaming operators, `operator<<` and `operator>>` are always implemented as non-member functions. [Sutter05](#Sutter05) §57
+
+
+#### operator&, operator||, operator,
+
+Never overload these operators! [Meyers96](#Meyers96) §7, [Sutter05](#Sutter05) §30
+
+
+#### operator new
+
+Allocates enough memory to hold an object of the given type, and calls a constructor to initialize it. Can be overloaded to change the way memory gets allocated. [Meyers96](#Meyers96) §8
+
+There are many valid reasons for writing custom versions of new and delete, including improving performance, debugging heap usage errors, and collecting heap usage information. [Meyers05](#Meyers05) §50
+
+If called like a function (`operator new(size)`), C++ will only allocate memory, not call the object constructor. [Meyers96](#Meyers96) §8
+
+There are three forms of operator new: "plain new", "placement new" and "nothrow new". If implemening your own `operator new`, always provide/implement all three forms. [Meyers05](#Meyers05) §52, [Sutter05](#Sutter05) §46
+
+Always implement together with `operator delete`, except for the special in-place form. [Sutter99](#Sutter99) §36 [Sutter05](#Sutter05) §45
+
+`operator new` should contain an infinite loop trying to allocte memory, should call the new-handler if it can't satisfy a memory request, and should handle requests for zero bytes. Class-specific versions should handle requests for larger blocks than expected. [Meyers05](#Meyers05) §51
+
+Always explicitly declare `operator new` and `operator delete` as static functions. They are never nonstatic member functions. [Sutter99](#Sutter99) §36
+
+
+##### plain new:
+
+Should return a pointer to raw, uninitialized memory.
+
+    void* operator new(std::size_t); 
+
+
+##### placement new:
+
+Used when there is already allocated memory that should be assigned to the object.
+
+When you write a placement version of operator new, be sure to write the corresponding placement version of `operator delete`. If you don't, your program may experience subtle, intermittent memory leaks. [Meyers05](#Meyers05) §52
+
+    void* operator new(std::size_t, void* p)
+    {
+        return p;
+    }
+
+**Usage example:**
+
+    class Widget
+    {
+    public:
+    
+        Widget(int widgetSize);
+        ...
+    };
+    
+    Widget* constructWidgetInBuffer(void *buffer, int widgetSize)
+    {
+        return new (buffer) Widget(widgetSize); // Using placement new constructor.
+    }
+
+
+##### nothrow new
+
+Nothrow new is of limited utility, because it applies only to memory allocation; associated constructor calls may still throw exceptions. [Meyers05](#Meyers05) §49
+
+    void* operator new(std::size_t, std::nothrow_t) throw(); // nothrow in C++11
+
+
+#### operator delete
+
+Always implement together with `operator new`. [Sutter05](#Sutter05) §45
+
+Never allow operator delete to fail. [Sutter05](#Sutter05) §51
+
+operator delete should do nothing if passed a pointer that is null. Class-specific versions should handle blocks that are larger than expected. [Meyers05](#Meyers05) §51
+
+
+#### operator new[]
+
+Always implement together with `operator delete[]`. [Sutter05](#Sutter05) §45
+
+Always implement all three forms. [Sutter05](#Sutter05) §46
+
+#### operator delete[]
+
+Always implement together with `operator new[]`. [Sutter05](#Sutter05) §45
+
+Never allow `operator delete[]` to fail. [Sutter05](#Sutter05) §51
+
+
+#### Implicit type conversion operators
+
+Operators that take the form `operator typename() const;`, where "typename" is the name of a type (e.g. `double`).
+
+Usually this type of operator should be avoided, because it may lead to unexpected and unwanted uses, which are difficult to diagnose. [Meyers96](#Meyers96) §5
 
 
 C++ idioms
