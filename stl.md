@@ -13,15 +13,12 @@ STL overview
 STL is mainly based on three fundamental concepts: [Meyers96](#Meyers96) §35
 
 1.  [Containers](#Containers):
-
     Classes for holding collections of objects.
 
 2.  [Iterators](#Iterators):
-
     A mechanism for traversing containers and accessing held objects in them.
 
 3.  [Algorithms](#Algorithms):
-
     Functionality for performing operations on objects in containers, using iterators to traverse them.
 
 
@@ -32,14 +29,10 @@ Containers
 The STL containers can be subdivided into two categories:
 
 1.  [Sequence containers](#SequenceContainers):
-
     Containers oriented towards sequential access of objects.
-
     The standard sequence containers are `vector`, `string`, `deque` and `list`.
 2.  [Associative containers](#AssociativeContainers):
-
     Containers oriented towards random access of objects.
-
     The standard associative containers are `set`, `multiset`, `map` and `multimap`.
 
 Code should never be written with the goal to generalize the use of a specific container, so that it can be replaced without touching any code that uses it.
@@ -56,18 +49,13 @@ A [Sequence container](#SequenceContainers) is the right option when element pos
 It is also useful to categorize containers in terms of memory layout: [Meyers01](#Meyers01) §1
 
 1.  *Contiguous memory containers:*
-
     Containers that store multiple elements in chunks of contiguous memory.
     These containers are very efficient for ordered access of elements, but can be inefficient when it comes to insertion and deletion of elements.
-
     The contiguous memory containers are `vector`, `string`, and `deque`.
 
 2.  *Node-based containers:*
-
     Containers that store individual elements per chunk of memory.
-
     These containers are very efficient at insertion and deletion, but can be inefficient when it comes to access.
-
     The node-based containers are `list` and all [Associative containers](#AssociativeContainers).
 
 If it is important to avoid movement of existing container elements when inserting or erasing elements, A *Node-based container* is the only option. [Meyers01](#Meyers01) §1
@@ -304,18 +292,22 @@ Iterators
 ---------
 
 Iterators can be classified into five categories depending on the functionality they implement:
+
 1.  *Input iterators:*
     Read-only, single-pass container traversal.
+
 2.  *Output iterators:*
     Write-only, single-pass container traversal.
+
 3.  *Forward iterators:*
     Input+(Output) functionality, multi-pass forward traversal.
+
 4.  *Bidirectional iterators:*
     Forward iterator functionality + backwards traversal.
+
 5.  *Random access iterators:*
     Bidirectional iterator functionality + non-sequential access (classic pointers are of this category).
     Only supported by `vector`, `string` and `deque`.
-
 
 All STL [Containers](#Containers) offer four types of iterators:  `iterator`, `const_iterator`, `reverse_iterator` and `const_reverse_iterator`.
 
@@ -529,7 +521,6 @@ Nonstandard components
 Hashed associative containers: `hash_set`, `hash_multiset`, `hash_map`, and `hash_multimap`
 
 Singly linked list: `slist`
-
 
 Container for very large strings: `rope`
 
