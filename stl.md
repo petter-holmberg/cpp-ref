@@ -177,10 +177,10 @@ Avoid in-place key modifications in `set`s, it may break element ordering (if th
     Elem elementToChange;
     set<Elem>::iterator i = s.find(elementToChange); // Find element to change
     if (i != s.end()) {
-        Elem e(*i);                                    // Copy element
-        e.changeSomething();                           // Change the copy
-        e.erase(i++);                                  // Erase the original
-        s.insert(i, e);                                // insert the copy, hint at position if likely to be the same as the original
+        Elem e(*i);           // Copy element
+        e.changeSomething();  // Change the copy
+        e.erase(i++);         // Erase the original
+        s.insert(i, e);       // Insert the copy, hint at position if likely to be the same as the original
     }
 
 
