@@ -22,10 +22,10 @@ Containers
 ----------
 
 The STL containers can be subdivided into two categories:
-1.  *Sequence containers*:
+1.  *Sequence containers:*
     Containers oriented towards sequential access of objects.
     The standard sequence containers are `vector`, `string`, `deque` and `list`.
-2.  *Associative containers*:
+2.  *Associative containers:*
     Containers oriented towards random access of objects.
     The standard associative containers are `set`, `multiset`, `map` and `multimap`.
 
@@ -41,11 +41,11 @@ Containers of `new`:ed pointers are prone to leak memory. The best way to avoid 
 A *Sequence container* is the right option when element position matters, especially for insertion. Otherwise, an *Associative container* is a viable option. [Meyers01](#Meyers01) §1.
 
 It is also useful to categorize containers in terms of memory layout: [Meyers01](#Meyers01) §1
-1.  *Contiguous memory containers*:
+1.  *Contiguous memory containers:*
     Containers that store multiple elements in chunks of contiguous memory.
     These containers are very efficient for ordered access of elements, but can be inefficient when it comes to insertion and deletion of elements.
     The contiguous memory containers are `vector`, `string`, and `deque`.
-2.  *Node-based containers*:
+2.  *Node-based containers:*
     Containers that store individual elements per chunk of memory.
     These containers are very efficient at insertion and deletion, but can be inefficient when it comes to access.
     The node-based containers are `list` and all associative containers.
@@ -276,6 +276,45 @@ See [Erasing](#Erasing) about how to use range-based remove().
 <a name="Iterators"></a>
 Iterators
 ---------
+
+Iterators can be classified into five categories depending on the functionality they implement:
+1.  *Input iterators:*
+    Read-only, single-pass container traversal.
+2.  *Output iterators:*
+    Write-only, single-pass container traversal.
+3.  *Forward iterators:*
+    Input+(Output) functionality, multi-pass forward traversal.
+4.  *Bidirectional iterators:*
+    Forward iterator functionality + backwards traversal.
+5.  *Random access iterators:*
+    Bidirectional iterator functionality + non-sequential access (classic pointers are of this category).
+    Only supported by `vector`, `string` and `deque`.
+
+
+All STL [Containers](#Containers) offer four types of iterators:  `iterator`, `const_iterator`, `reverse_iterator` and `const_reverse_iterator`.
+
+An `iterator` can be implicitly converted into a `const_iterator` or a `reverse_iterator`, and a `reverse_iterator` into a `const_reverse_iterator`.
+The `.base()` function of the reverse variants return their corresponding forward variant.
+For container insertion or erasure, typically prefer using the normal iterator even when other options are available. [Meyers01](#Meyers01) §26
+
+To convert from the const variants of a container's iterators into the non-const variants, use `distance()` and `advance()`: [Meyers01](#Meyers01) §27
+
+    Container c;
+    Container::const_iterator ci;
+    
+    Container::iterator i(c.begin());
+    advance(i, distance<Container::const_iterator>(i, ci));
+
+To emulate insertion at a position specified by a `reverse_iterator ri`, insert at the position `ri.base()`. [Meyers01](#Meyers01) §28
+
+To erase at a position a position specified by a `reverse_iterator ri`, erase at the element preceding `ri.base()`: [Meyers01](#Meyers01) §28
+
+    container.erase((++ri).base());
+
+To read characters from a stream efficiently, use `istreambuf_iterator`s: [Meyers01](#Meyers01) §29
+
+    ifstream inputFile("data.txt");
+    string fileData(istreambuf_iterator<char>(inputFile), istreambuf_iterator<char>());
 
 
 <a name="Algorithms"></a>
