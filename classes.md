@@ -36,7 +36,7 @@ A class's implementation is encapsulated within the class, and includes the priv
 When designing a class, follow the Law of Second Chances: [Sutter05](#Sutter05) §36
 - The most important thing to get right is the interface. Everything else can be fixed later. Get the interface wrong and you may never be allowed to fix it.
 
-When designing a class, follow the Dependency Inversion Principle (DIP) and prefer to provide abstract interfaces: [Sutter05](#Sutter05) §36
+When designing a class, follow the Dependency Inversion Principle (DIP) and prefer to provide [Abstract interfaces](#AbstractInterfaces): [Sutter05](#Sutter05) §36
 - High-level modules should not depend on low-level modules. Rather, both should depend upon abstractions.
 - Abstractions should not depend upon details. Rather, details should depend upon abstractions.
 
@@ -45,7 +45,7 @@ Make interfaces easy to use correctly and hard to use incorrectly: [Meyers05](#M
 - Ways to facilitate correct use include consistency in interfaces and behavioral compatibility with built-in types.
 - Ways to prevent errors include creating new types, restricting operations on types, constraining object values, and eliminating client resource management responsibilities.
 
-By default, all data members should be private (except if the class is an *aggregate*) and accessible only through member functions. [Sutter05](#Sutter05) §41
+By default, all data members should be private (except if the class is an [Aggregate](#Aggregates)) and accessible only through member functions. [Sutter05](#Sutter05) §41
 
 By default, classes should never provide functions that return handles to internal (private) members, allowing external code to modify them (even const is not safe because it can be cast away).
 The exception is if compatibility with existing (legacy) code is necessary, and then the reasoning behind these exceptions should be clearly documented. [Sutter05](#Sutter05) §42
@@ -57,7 +57,7 @@ Compositioning is to embed a member variable of one class within another class, 
 
 Composition has meanings completely different from that of public inheritance. In the application domain, composition means "has-a", in the implementation domain, it means "is-implemented-in-terms-of". [Meyers05](#Meyers05) §38
 
-Prefer composition to implementing base classes, it minimizes coupling. [Sutter02](#Sutter02) §23, [Sutter05](#Sutter05) §34
+Prefer composition to implementing [Base classes](#BaseClasses), it minimizes coupling. [Sutter02](#Sutter02) §23, [Sutter05](#Sutter05) §34
 
 
 ### Inheritance guidelines
@@ -68,7 +68,7 @@ Inheritance in C++ comes in three flavors:
 
     Public inheritance, models the "is-a" (or better, "works-like-a") ...or "is-implemented-in-terms-of" relationship. Everything that applies to base classes must also apply to derived classes, because every derived class object is a base class object. [Meyers05](#Meyers05) §32
 
-    Names in derived classes hide names in base classes. Under public inheritance, this is never desirable. To make hidden names visible again, employ "using" declarations or forwarding functions. [Meyers05](#Meyers05) §33
+    Names in derived classes hide names in base classes. Under public inheritance, this is never desirable. To make hidden names visible again, employ `using` declarations or forwarding functions. [Meyers05](#Meyers05) §33
 
 2.  Private inheritance
 
@@ -127,9 +127,9 @@ When overriding a virtual base class function: [Sutter05](#Sutter05) §38
 - Make the overriding function virtual as well.
 - Make the overriding function respect the same pre- and post-conditions as the base class function. (overrides should never require more or provide less than the original function.)
 - When overriding, never change the value of default arguments. [Meyers05](#Meyers05) §37
-- If the base class has multiple functions with the same name but different signatures, overriding just one hides all the others in the derived class. To bring them back into scope in the derived class, add a "using BaseClass::functionName" declaration in the derived class.
+- If the base class has multiple functions with the same name but different signatures, overriding just one hides all the others in the derived class. To bring them back into scope in the derived class, add a `using BaseClass::functionName` declaration in the derived class.
 
-Try to avoid multiple inheritance of more than one class that is not an abstract interface. [Meyers05](#Meyers05) §40, [Sutter02](#Sutter02) §24, [Sutter05](#Sutter05) §36
+Try to avoid multiple inheritance of more than one class that is not an [Abstract interfaces](#AbstractInterfaces). [Meyers05](#Meyers05) §40, [Sutter02](#Sutter02) §24, [Sutter05](#Sutter05) §36
 - Multiple inheritance is more complex than single inheritance. It can lead to new ambiguity issues and to the need for virtual inheritance.
 - Virtual inheritance imposes costs in size, speed, and complexity of initialization and assignment. It's most practical when virtual base classes have no data.
 - Multiple inheritance does have legitimate uses. One scenario involves combining public inheritance from an Interface class with private inheritance from a class that helps with implementation.
@@ -180,7 +180,7 @@ Observe the canonical exception-safety rules:  [Sutter99](#Sutter99) §8-18
 #### No-fail Guarantee
 
 The No-fail Guarantee is the strongest: The function simply cannot fail. The caller doesn't need to check for any errors.
-A prerequisite for any destructor, deallocation function or `swap` function. 
+A prerequisite for any destructor, deallocation function or `swap()` function. 
 
 #### Strong Guarantee
 
@@ -212,6 +212,7 @@ C++ classes come in many flavors, and depending on which one you want to impleme
 A class shold neatly fall into one of these categories. If it doesn't it is probably a sign that the class is doing too much and should be divided into multiple classes.
 
 
+<a name="ValueClasses"></a>
 ### Value classes
 
 Value classes are intended to be used as concrete classes, not as base classes. They should be modeled after built-in types and usually be instantiated on the stack or as directly held members of other classes. [Sutter05](#Sutter05) §32
@@ -241,15 +242,16 @@ Example: `std::vector`
 Never use a value class as a base class! [Sutter05](#Sutter05) §35
 
 
+<a name="Aggregates"></a>
 #### Aggregates
 
-Aggregates are a special case of value classes that also have:
+Aggregates are a special case of [Value classes](#ValueClasses) that also have:
 - No user-declared constructors.
 - No private or protected non-static data members.
 - No base classes.
 - No virtual functions.
 
-They hold a collection of values, and don't pretend to encapsulate or provide any behavior. C-style structs are aggregates in C++. So are arrays.
+They hold a collection of values, and don't pretend to encapsulate or provide any behavior. C-style `struct`s are Aggregates in C++. So are arrays.
 
 Example: `std::pair`
 
@@ -261,7 +263,7 @@ Example: `std::pair`
         SomeClass member2;
     };
 
-By default, reserve usage of the "struct" keyword for aggregates, because it requires no extra syntax for them and makes the intent clear.
+By default, reserve usage of the `struct` keyword for Aggregates, because it requires no extra syntax for them and makes the intent clear.
 
 Aggregates can be instantiated with curly braces:
 
@@ -271,7 +273,7 @@ Aggregates can be instantiated with curly braces:
 
 #### POD-structs
 
-POD-structs (Plain Old Data) are a special case of aggregates that also have:
+POD-structs (Plain Old Data) are a special case of [Aggregates](#Aggregates) that also have:
 - No non-static data members that are non-POD-structs, non-POD-unions (or arrays of such types) and no reference members.
 - No user-defined assignment operator.
 - No user-defined destructor.
@@ -285,9 +287,10 @@ POD-structs (Plain Old Data) are a special case of aggregates that also have:
         AnotherPodStruct member2[3];
     };
 
-POD-structs are typically compatible with C-style structs.
+POD-structs are typically compatible with C-style `struct`s.
 
 
+<a name="BaseClasses"></a>
 ### Base classes
 
 Base classes are the building blocks of class hierarchies. They establish interfaces through virtual functions. They are usually instantiated dynamically on the heap as part of a concrete derived class object, and used via a (smart) pointer.
@@ -318,13 +321,14 @@ Base classes with a high cost of change should have public functions that are no
 Virtual functions should be made private, or protected if derived classes need to be able to call them (see [NVI](#NVI)). Destructors are an exception to this rule. [Sutter05](#Sutter05) §39
 
 Base classes should always be abstract if they don't need to be used as leaf classes in an inheritance hierarchy.
-If a base class is concrete because some aspects of it require it to be, while it's also used to implement common functionality of derived classes, separate out the common parts into an abstract base class and make the original base class inherit from that along with the other leaf classes. [Meyers96](#Meyers96) §33
+If a Base class is concrete because some aspects of it require it to be, while it's also used to implement common functionality of derived classes, separate out the common parts into an abstract Base class and make the original Base class inherit from that along with the other leaf classes. [Meyers96](#Meyers96) §33
 
-Normally, base class destructors should be public and virtual. To prevent polymorphic deletion through base class pointers, make the destructor non-virtual and protected. [Sutter02](#Sutter02) §27
+Normally, Base class destructors should be public and virtual. To prevent polymorphic deletion through Base class pointers, make the destructor non-virtual and protected. [Sutter02](#Sutter02) §27
 
-Not all base classes are designed to be used polymorphically. Examples are the standard container types. As a result, they don't need virtual destructors. [Meyers05](#Meyers05) §7
+Not all Base classes are designed to be used polymorphically. Examples are the standard container types. As a result, they don't need virtual destructors. [Meyers05](#Meyers05) §7
 
 
+<a name="AbstractInterfaces"></a>
 ### Abstract interfaces
 
 Abstract interfaces are classes made up entirly of (pure) virtual functions and containing no state. Usually they don't have any member function implementations.
@@ -394,7 +398,7 @@ Examples: `std::iterator_traits`, `std::numeric_limits`
 A functor is a class modeled after function pointers. The convention in STL is to pass functors by value. Therefore, they should be lightweight and have valid copy-semantics. They also need to be monomorphic, i.e. not use virtual functions.
 State and polymorphism can be implemented using the [Pimpl idiom](#Pimpl). [Meyers01](#Meyers01) §38
 
-Functors that are predicates (i.e. return bool or something that can be implicitly converted into bool) should be pure functions, i.e. their return value should only depend on the input values and not some internal state. 
+Functors that are predicates (i.e. return `bool` or something that can be implicitly converted into `bool`) should be pure functions, i.e. their return value should only depend on the input values and not some internal state. 
 Defining `operator()` `const` is necessary for predicates, but internally they must also avoid accessing mutable data members, non-const local static objects, non-const objects at namespace scope and non-const global objects. 
 The C++ standard doesn't guarantee that stateful predicates will work with standard algorithms! [Meyers01](#Meyers01) §39 [Sutter02](#Sutter02) §3
 
@@ -456,9 +460,10 @@ To accept a functor as argument, a function needs to be defined as a template:
         functor(...);
     }
 
-Such a function can accept both function pointers (`&fun`), functors (`fun()`) and lambdas (`[]() { ... }`)).
+Such a function can accept both function pointers (`&fun`), functors (`fun()`) and (in C++11) lambdas (`[](){...}`).
 
 
+<a name="ExceptionClasses"></a>
 ### Exception classes
 
 Exception classes can be implemented to define domain-specific exceptions.
@@ -488,7 +493,7 @@ Exceptions should be thrown by value and be caught by (const) reference. If re-t
 
 Policy classes (normally templates) are fragments of pluggable behavior. They are not usually instantiated standalone but as a base or member of another class. They may or may not have state or virtual functions.
 
-In brief, policy-based class design fosters assembling a class (called the host) with complex behavior out of many little classes (called policies), each of which takes care of only one behavioral or structural aspect. As the name suggests, a policy establishes an interface pertaining to a specific issue. 
+In brief, policy-based class design fosters assembling a class (called the *host*) with complex behavior out of many little classes (called *policies*), each of which takes care of only one behavioral or structural aspect. As the name suggests, a policy establishes an interface pertaining to a specific issue. 
 You can implement policies in various ways as long as you respect the policy interface.
 
 Because you can mix and match policies, you can achieve a combinatorial set of behaviors by using a small core of elementary components.
@@ -556,7 +561,7 @@ Because you can mix and match policies, you can achieve a combinatorial set of b
 
 ### Mixin classes
 
-A C++ mixin class is a template class that is parameterized on its base class, implementing some specific fragment of functionality. It is intended to be composed with other classes.
+A C++ mixin class is a template class that is parameterized on its [Base class](#BaseClasses), implementing some specific fragment of functionality. It is intended to be composed with other classes.
 
 **Example implementation:**
 
@@ -755,10 +760,10 @@ Explicitly disallow the use of compiler-generated functions you do not want, by 
 
 #### Constructor
 
-For an Exception class:
+For an [Exception class](#ExceptionClasses):
 - Make impossible to fail.
 
-For a RAII class:
+For a [RAII class](#RAII):
 - Allocate the resource in it (or do setup for lazy allocation later).
 
 The default constructor is the one that takes no arguments. If possible, one should be defined by the class (must be done explicitly if other constructors are defined) because otherwise the class will not be usable in arrays and STL containers, and in virtual base classes the lack of one means all derived classes must explicitly define all the base class's arguments. [Meyers96](#Meyers96) §4
@@ -782,14 +787,14 @@ Making the constructor(s) private prevents object instantiation. A function made
 
 #### Destructor
 
-For a Value class:
+For a [Value class](#ValueClasses):
 - Make public.
 - Make non-virtual.
 
-For a RAII class:
+For a [RAII class](#RAII):
 - Release the resource in it.
 
-For a Base class:
+For a [Base class](#BaseClasses):
 - Implementation depends on if clients should be able to delete polymorphically using a pointer to the base class or not. [Meyers05](#Meyers05) §7, [Sutter02](#Sutter02) §27, [Sutter05](#Sutter05) §50
     - Make public for polymorphic deletion, private (protected) otherwise.
     - Make virtual for polymorphic deletion, non-virtual otherwise.
@@ -809,11 +814,11 @@ A destructor implies changing state outside of the object being destroyed. If th
 
 #### Copy constructor
 
-For a Value class:
+For a [Value class](#ValueClasses):
 - Make public.
 - Make non-virtual.
 
-For an Exception class:
+For an [Exception class](#ExceptionClasses):
 - Make impossible to fail.
 
 If you write/disable the copy constructor, also do the same for the copy assignment operator [Sutter05](#Sutter05) §52.
@@ -867,7 +872,7 @@ Abstract base classes can also define a pure virtual `clone()` function (otherwi
 
 #### Copy assignment operator
 
-For a Value class:
+For a [Value class](#ValueClasses):
 - Make public.
 - Make non-virtual.
 
@@ -882,9 +887,9 @@ Never write a copy assignment operator that relies on a check for self-assignmen
 
 ### swap
 
-Provide a no-fail `swap()` function to efficiently and infallibly swap the contents of this object with another's. It has many potential uses (primarily in Value classes), e.g. to implement assignment easily while maintaining the strong exception guarantee for objects composed of other objects that provide the Strong Guarantee. [Meyers05](#Meyers05) §25, [Sutter99](#Sutter99) §12 [Sutter02](#Sutter02) §22 [Sutter05](#Sutter05) §56
+Provide a no-fail `swap()` function to efficiently and infallibly swap the contents of this object with another's. It has many potential uses (primarily in [Value classes](#ValueClasses)), e.g. to implement assignment easily while maintaining the strong exception guarantee for objects composed of other objects that provide the Strong Guarantee. [Meyers05](#Meyers05) §25, [Sutter99](#Sutter99) §12 [Sutter02](#Sutter02) §22 [Sutter05](#Sutter05) §56
 
-If you offer a member `swap`, also offer a non-member `swap` that calls the member. For classes (not templates), specialize `std::swap` too. When calling `swap`, employ a `using` declaration for `std::swap`, then call `swap` without namespace qualification. It's fine to totally specialize `std` templates for user-defined types, but never try to add something completely new to `std`. [Meyers05](#Meyers05) §25
+If you offer a member `swap()`, also offer a non-member `swap()` that calls the member. For classes (not templates), specialize `std::swap()` too. When calling `swap()`, employ a `using` declaration for `std::swap()`, then call `swap()` without namespace qualification. It's fine to totally specialize `std` templates for user-defined types, but never try to add something completely new to `std`. [Meyers05](#Meyers05) §25
 
 **Example implementation:**
 
@@ -1150,7 +1155,7 @@ C++ idioms
 #### RAII
 
 Any class that allocates a resource that must be released after use (heap memory, file handle, thread, socket etc.) should be implemented using the RAII Idiom (Resource Acquisition Is Initialization):
-- Perform allocation/acquisition in the constructor (or lazily at the first method call that needs it. [Meyers96](#Meyers96) §17)
+- Perform allocation/acquisition in the constructor (or lazily at the first method call that needs it). [Meyers96](#Meyers96) §17
 - Perform deallocation/release in the destructor.
 - Either provide a copy constructor and copy assignment operator with valid resource copying semantics or disable both (by making them private and non-implemented). [Meyers05](#Meyers05) §13 §14, [Sutter05](#Sutter05) §13
 
@@ -1225,6 +1230,57 @@ Pimpl is useful to suppress class member constructor exceptions when the class' 
     }
 
 
+<a name="CRTP"></a>
+### Curiously Recurring Template Pattern
+
+The Curiously Recurring Template Pattern (CRTP) is useful to extract out type-independent but type-customizable functionality in a base class and to mix in that interface/property/behavior into a derived class, customized for the derived class.
+
+This is achieved by creating classes inheriting from a base class template, specializing it on their own type.
+
+**Example implementation:**
+
+    template <typename Derived>
+    struct Base
+    {
+        void interface()
+        {
+            ...
+            static_cast<Derived*>(this)->implementation();
+            ...
+        }
+    
+        static void static_interface()
+        {
+            ...
+            Derived::static_implementation();
+            ...
+        }
+     
+        // The default implementation may be (if exists) or should be (otherwise) overriden by inheriting in derived classes (see below)
+        void implementation();
+        static void static_implementation();
+    };
+    
+    // The Curiously Recurring Template Pattern (CRTP)
+    struct Derived1 : Base<Derived1>
+    {
+        // This class uses Base's variant of implementation()
+        //void implementation();
+    
+        // ... and overrides static_implementation()
+        static void static_implementation();
+    };
+    
+    struct Derived2 : Base<Derived2>
+    {
+        // This class overrides implementation()
+        void implementation();
+    
+        // ... and uses Base's variant of static_implementation()
+        //static void static_implementation();
+    };
+
+
 <a name="Visitor"></a>
 ### Visitor Pattern
 
@@ -1271,7 +1327,7 @@ Now, to add a `log()` functionality to all derived classes, first add an `accept
         virtual void accept(Visitor& v) { v.visit(this); }
     };
 
-Next, create a `Visitor` base class with a pure virtual `visit()` method for each `Base` type:
+Next, create a `Visitor` [Base class](#BaseClasses) with a pure virtual `visit()` method for each `Base` type:
 
     class Visitor
     {
@@ -1426,3 +1482,7 @@ References
 <a name="Sutter05"></a>
 [Sutter05]
 "C++ coding standards - 101 Rules, Guidelines, and Best Practices", ISBN 0-321-11358-6
+
+[Generic Programming in C++](http://www.generic-programming.org/languages/cpp/)
+
+[More C++ Idioms](http://en.wikibooks.org/wiki/More_C++_Idioms)
