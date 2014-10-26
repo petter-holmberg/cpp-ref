@@ -30,7 +30,7 @@ The STL containers can be subdivided into two categories:
     The standard associative containers are `set`, `multiset`, `map` and `multimap`.
 
 Code should never be written with the goal to generalize the use of a specific container, so that it can be replaced without touching any code that uses it.
-Instead, find the container that best matches the required use cases, and use typedefs to clairfy syntax and make container replacement easier in the event that it needs to be done. [Meyers01](#Meyers01) §2
+Instead, find the container that best matches the required use cases, and use typedefs to clarify syntax and make container replacement easier in the event that it needs to be done. [Meyers01](#Meyers01) §2
 
 Containers should never contain base classes, as this causes slicing (only the base part of derived classes being inserted) which is almost always an error.
 To implement containers holding different types, make containers of base class pointers, or preferably of smart pointers (but never auto_ptr!)
@@ -63,7 +63,7 @@ Not all implementations respect even these guarantees. [Meyers01](#Meyers01) §1
 
 All standard containers implement the Strong Guarantee for all operations, with two exceptions: [Sutter99](#Sutter99) §18
 1. Multi-element inserts ("iterator range" inserts) are never strongly exception-safe.
-2. For `vector<T>` and `deque<T>`, all inserts and erases are strongly exception-safe only as long as T's copy constructor and assignment operator do not throw; inserting into a `vector<string>` or a `vector<vector<int>>`, for example, are not strongly exception-safe.
+2. For `vector<T>` and `deque<T>`, all inserts and erases are strongly exception-safe only as long as `T`'s copy constructor and assignment operator do not throw; inserting into a `vector<string>` or a `vector<vector<int>>`, for example, are not strongly exception-safe.
 This means that classes having container members and using the aforementioned operations must do the work themselves to ensure that their state is predictable if exceptions occur.
 To do this, insert and erase in a copy of the container, then use `swap()` to switch over to using the new version after the copy-and-change steps have succeeded.
 
@@ -77,7 +77,7 @@ The standard sequence containers are `vector`, `string`, `deque` and `list`.
 
 `vector` is the only standard container with a C-compatible layout (same as an array) and is therefore the only option to use when interfacing with a C library.
 
-`vector` should always be preferred to a dynamically allocated array. To pass a vector safely to a C API that expects an array, do it like this: [Meyers01](#Meyers01) §13 §16
+`vector` should always be preferred to a dynamically allocated array. To pass a `vector` safely to a C API that expects an array, do it like this: [Meyers01](#Meyers01) §13 §16
 
     void cApiFunction(const int* ints, size_t numInts);
     if (!v.empty()) // &v[0] undefined if vector is empty
@@ -102,7 +102,7 @@ Using `c_str()` is the only safe and correct way to pass `string`s to a C API th
 #### deque
 
 While `vector` should be the default sequence container of choice, `deque` should be used when most insertions and deletions take place at the beginning or at the end of the sequence.
-It offers constant-time `insert()` and `erase()` operations at both ends, uses memory in an operating system-friendly way (large deques can be split in multiple blocks of memory of a suitable size), is somewhat easier to use and inherently more efficient for growth. [Sutter02](#Sutter02) §7
+It offers constant-time `insert()` and `erase()` operations at both ends, uses memory in an operating system-friendly way (large `deque`s can be split in multiple blocks of memory of a suitable size), is somewhat easier to use and inherently more efficient for growth. [Sutter02](#Sutter02) §7
 
 
 ### Associative containers
@@ -339,7 +339,7 @@ Functors typically make better algorithm parameters than functions, enabling opt
 It is also more portables, as different implementations of STL may have problems compiling code that uses algorithms used together with functions. [Meyers01](#Meyers01) §46
 
 Using STL algorithms to solve complex problems in one go can lead to "write-only code" that is very difficult to read and understand.
-Use good judgement and split up the problem or use alternative ways to solve the problem when it leads to clearer code. [Meyers01](#Meyers01) §47
+Use good judgment and split up the problem or use alternative ways to solve the problem when it leads to clearer code. [Meyers01](#Meyers01) §47
 
 
 <a name="Searching"></a>
@@ -396,7 +396,7 @@ There are many sorting algorithms offered by STL, and they solve different probl
 
 `sort()`, `partial_sort()` and `nth_element()` sorts elements with equivalent values any way they want to. `stable_sort()` is the only option that preserves the order of equivalent elements.
 
-`nth_element()` can be used not only to find the top n elements of a range, it can also be used to find the median value at a particular pecentile.
+`nth_element()` can be used not only to find the top n elements of a range, it can also be used to find the median value at a particular percentile.
 
 `partition()` reorders elements in a range so that all elements satisfying a particular criterion are at the beginning of the range.
 
