@@ -171,7 +171,7 @@ Object comparison in associative containers is not done using equality (i.e. `op
 
 #### set
 
-Avoid in-place key modifications in sets, it may break element ordering (if the change affects the equivalence predicate). Instead, do the following: [Meyers01](#Meyers01) §22
+Avoid in-place key modifications in `set`s, it may break element ordering (if the change affects the equivalence predicate). Instead, do the following: [Meyers01](#Meyers01) §22
 
     set<Elem> s;
     Elem elementToChange;
@@ -186,7 +186,7 @@ Avoid in-place key modifications in sets, it may break element ordering (if the 
 
 #### multiset
 
-Avoid in-place key modifications in multisets (see `set`).
+Avoid in-place key modifications in `multiset`s (see `set`).
 
 
 #### map
