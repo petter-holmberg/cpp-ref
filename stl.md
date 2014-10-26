@@ -12,9 +12,17 @@ STL overview
 
 STL is mainly based on three fundamental concepts: [Meyers96](#Meyers96) §35
 
-1. [Containers](#Containers): Classes for holding collections of objects.
-2. [Iterators](#Iterators): A mechanism for traversing containers and accessing held objects in them.
-3. [Algorithms](#Algorithms): Functionality for performing operations on objects in containers, using iterators to traverse them.
+1.  [Containers](#Containers):
+
+    Classes for holding collections of objects.
+
+2.  [Iterators](#Iterators):
+
+    A mechanism for traversing containers and accessing held objects in them.
+
+3.  [Algorithms](#Algorithms):
+
+    Functionality for performing operations on objects in containers, using iterators to traverse them.
 
 
 <a name="Containers"></a>
@@ -24,17 +32,21 @@ Containers
 The STL containers can be subdivided into two categories:
 
 1.  [Sequence containers](#SequenceContainers):
+
     Containers oriented towards sequential access of objects.
+
     The standard sequence containers are `vector`, `string`, `deque` and `list`.
 2.  [Associative containers](#AssociativeContainers):
+
     Containers oriented towards random access of objects.
+
     The standard associative containers are `set`, `multiset`, `map` and `multimap`.
 
 Code should never be written with the goal to generalize the use of a specific container, so that it can be replaced without touching any code that uses it.
 Instead, find the container that best matches the required use cases, and use typedefs to clarify syntax and make container replacement easier in the event that it needs to be done. [Meyers01](#Meyers01) §2
 
 Containers should never contain base classes, as this causes slicing (only the base part of derived classes being inserted) which is almost always an error.
-To implement containers holding different types, make containers of base class pointers, or preferably of smart pointers (but never auto_ptr!)
+To implement containers holding different types, make containers of base class pointers, or preferably of smart pointers (but never `auto_ptr`!)
 Containers of `new`:ed pointers are prone to leak memory. The best way to avoid this problem is to use smart pointers. [Meyers01](#Meyers01) §3 §7 §8
 
 `vector` is usually the right container to use by default when it is not obvious that another one should be used, it offers a lot of useful properties that other containers don't provide. [Sutter05](#Sutter05) §76
@@ -42,13 +54,20 @@ Containers of `new`:ed pointers are prone to leak memory. The best way to avoid 
 A [Sequence container](#SequenceContainers) is the right option when element position matters, especially for insertion. Otherwise, an [Associative container](#AssociativeContainer) is a viable option. [Meyers01](#Meyers01) §1.
 
 It is also useful to categorize containers in terms of memory layout: [Meyers01](#Meyers01) §1
+
 1.  *Contiguous memory containers:*
+
     Containers that store multiple elements in chunks of contiguous memory.
     These containers are very efficient for ordered access of elements, but can be inefficient when it comes to insertion and deletion of elements.
+
     The contiguous memory containers are `vector`, `string`, and `deque`.
+
 2.  *Node-based containers:*
+
     Containers that store individual elements per chunk of memory.
+
     These containers are very efficient at insertion and deletion, but can be inefficient when it comes to access.
+
     The node-based containers are `list` and all [Associative containers](#AssociativeContainers).
 
 If it is important to avoid movement of existing container elements when inserting or erasing elements, A *Node-based container* is the only option. [Meyers01](#Meyers01) §1
@@ -120,9 +139,9 @@ Once a key has been inserted into an associative container, that key must never 
 
 The standard associative containers are optimized for a mixed combination of inserts, erasures, and lookups. But many usage scenarios look more like this: [Meyers01](#Meyers01) §23
 
-1. Setup phase, consisting mainly of many inserts (and possibly erasures)
-2. Lookup phase, consisting mainly of lookups (bulk of the time spent here!)
-3. Reorganize phase, modifying/replacing data, then returning to lookup again (if needed at all)
+1. *Setup phase*, consisting mainly of many inserts (and possibly erasures)
+2. *Lookup phase*, consisting mainly of lookups (bulk of the time spent here!)
+3. *Reorganize phase*, modifying/replacing data, then returning to lookup again (if needed at all)
 
 In this type of scenario, replacing the container with a sorted `vector` is likely to improve both memory usage and speed considerably (due to caching), assuming that the lookup phase contains only lookups.
 
