@@ -230,7 +230,7 @@ Example: `std::vector`
         // Copy assignment operator: Public and non-virtual
         ValueClass& operator=(const ValueClass& rhs) {}
     
-        // Destructor: Public and non-virtual [Meyers05](#Meyers05) §7
+        // Destructor: Public and non-virtual [Meyers05] §7
         ~ValueClass() {}
     
         // Assignment operator with value semantics
@@ -300,14 +300,11 @@ Base classes are the building blocks of class hierarchies. They establish interf
     class BaseClass
     {
     public:
-    
         // Destructor allowing polymorphic deletion
         virtual ~BaseClass() {}
     
         // Non-virtual functions, defining interface
-    
-    private:
-    
+     private:
         // Copy constructor not implemented to disable copying
         ValueClass(const ValueClass& rhs);
     
@@ -338,7 +335,6 @@ Abstract interfaces are classes made up entirly of (pure) virtual functions and 
     class Interface
     {
     public:
-    
         // Public virtual destructor to allow polymorphic deletion. [Sutter02] §27
         virtual ~Interface () = 0;
     
@@ -412,11 +408,8 @@ When the input parameters are `const` and not pointers, it is conventional to st
     class Predicate : public unary_function<T, bool>
     {
     public:
-    
         bool operator()(const T& value) const
-        {
-            return value.fulfillsPredicate();
-        }
+        { return value.fulfillsPredicate(); }
     };
     
     // Heavy polymorphic functor implemented using [Pimpl]
@@ -424,14 +417,9 @@ When the input parameters are `const` and not pointers, it is conventional to st
     class Functor : public unary_function<T, void>
     {
     public:
-    
         void operator()(const T& value) const
-        {
-            pimpl_->operator()(value);
-        }
-    
+        { pimpl_->operator()(value); }
     private:
-    
         FunctorImpl<T> *pimpl_;
     };
     
@@ -440,7 +428,6 @@ When the input parameters are `const` and not pointers, it is conventional to st
     class FunctorImpl : public unary_function<T, void>
     {
     private:
-    
         // Some heavy state
         Widget w_;
         int x_;
@@ -456,11 +443,9 @@ To accept a functor as argument, a function needs to be defined as a template:
 
     template <typename F>
     void foo(F functor)
-    {
-        functor(...);
-    }
+    { functor(...); }
 
-Such a function can accept both function pointers (`&fun`), functors (`fun()`) and (in C++11) lambdas (`[](){...}`).
+Such a function can accept both function pointers (`&fun`), functors (`fun()`) and (in C++11) lambdas (`[](){ ... }`).
 
 
 <a name="ExceptionClasses"></a>
@@ -475,7 +460,6 @@ Exceptions should be thrown by value and be caught by (const) reference. If re-t
     class ExceptionClass : public std:exception
     {
     public:
-    
         // No-fail constructor
         ExceptionClass() {}
     
@@ -504,34 +488,25 @@ Because you can mix and match policies, you can achieve a combinatorial set of b
     class OutputPolicyWriteToCout
     {
     protected:
-    
         template <typename MessageType>
         void print(MessageType const& message) const
-        {
-            std::cout << message << std::endl;
-        }
+        { std::cout << message << std::endl; }
     };
     
     // Policy class for the "Hello World!" message in English
     class LanguagePolicyEnglish
     {
     protected:
-    
         std::string message() const
-        {
-            return "Hello, World!";
-        }
+        { return "Hello, World!"; }
     };
     
     // Policy class for the "Hello World!" message in German
     class LanguagePolicyGerman
     {
     protected:
-    
         std::string message() const
-        {
-            return "Hallo Welt!";
-        }
+        { return "Hallo Welt!"; }
     };
     
     // Host class, accepting two different policies
@@ -540,14 +515,10 @@ Because you can mix and match policies, you can achieve a combinatorial set of b
     {
         using OutputPolicy::print;
         using LanguagePolicy::message;
-    
     public:
-    
         // Behavior method
         void run() const
-        {
-            print(message()); // Two policy methods
-        }
+        { print(message()); } // Two policy methods
     };
     
     typedef HelloWorld<OutputPolicyWriteToCout, LanguagePolicyEnglish> HelloWorldEnglish;
@@ -568,18 +539,14 @@ A C++ mixin class is a template class that is parameterized on its [Base class](
     class ConcreteMessage
     {
     public:
-    
         void print()
-        {
-          cout << "Hello!";
-        }
+        { cout << "Hello!"; }
     };
     
-    template<typename T>
+    template <typename T>
     class BoldMixin : public T
     {
     protected:
-    
         void print()
         {
             cout << "<b>";
@@ -588,11 +555,10 @@ A C++ mixin class is a template class that is parameterized on its [Base class](
         }
     };
     
-    template<typename T>
+    template <typename T>
     class ItalicMixin : public T
     {
     protected:
-    
         void print()
         {
             cout << "<i>";
@@ -684,14 +650,12 @@ Introduces a name that is declared elsewhere into the declarative region where t
     class Base
     {
     protected:
-    
         int foo; // Base::foo is protected
     };
     
     Class Derived : public Base
     {
     public:
-    
         using Base::foo; // Derived::foo is public
     };
 
@@ -721,7 +685,6 @@ The `friend` keyword can be used to override access restrictions for other class
     Class Foo
     {
     private:
-    
         int data;
     
         friend class Bar;      // Bar will be able to access Foo::data
@@ -838,33 +801,24 @@ Abstract base classes can also define a pure virtual `clone()` function (otherwi
     class NonSliceableComponents
     {
     public:
-    
         // Copy constructor
         NonSliceableComponents(const NonSliceableComponents& rhs) 
         {
             // Deep-copy all components
             for (list<NonSliceable*>::const_iterator it = rhs.components_.begin(); it != rhs.components_.end(); ++it)
-            {
-                components_.push_back(it->clone());
-            }
+            { components_.push_back(it->clone()); }
         }
-    
     private:
-    
         std::vector<NonSliceableComponent*> components_;
     };
     
-    class NonSliceableComponent
+    struct NonSliceableComponent
     {
-    public:
-    
         virtual NonSliceable* clone() const = 0;
     };
     
-    class Component : public NonSliceableComponent
+    struct Component : public NonSliceableComponent
     {
-    public:
-    
         // Virtual copy constructor, using the normal copy constructor
         virtual Component* clone() const { return new Derived(*this); }
     }
@@ -896,12 +850,9 @@ If you offer a member `swap()`, also offer a non-member `swap()` that calls the 
     class Derived : public Base
     {
     private:
-    
         U member1_;
         int member2_;
-    
     public:
-    
         // Member swap (first swap bases, then members)
         void swap(T& rhs) // noexcept
         {
@@ -933,27 +884,21 @@ If you offer a member `swap()`, also offer a non-member `swap()` that calls the 
     {
         template <>
         void swap(T& t1, T& t2)
-        {
-            t1.swap(t2);
-        }
+        { t1.swap(t2); }
     }
     
     // Template example
-    template<typename T>
+    template <typename T>
     class X
     {
         ...
         void swap(X<T>& rhs)
-        {
-            ...
-        }
+        { ... }
     };
     
     template <typename T>
     void swap(X<T>& x1, X<T>& x2)
-    {
-        x1.swap(x2);
-    }
+    { x1.swap(x2); }
 
 
 ### Operators
@@ -1091,16 +1036,13 @@ Used when there is already allocated memory that should be assigned to the objec
 When you write a placement version of operator new, be sure to write the corresponding placement version of `operator delete`. If you don't, your program may experience subtle, intermittent memory leaks. [Meyers05](#Meyers05) §52
 
     void* operator new(std::size_t, void* p)
-    {
-        return p;
-    }
+    { return p; }
 
 **Usage example:**
 
     class Widget
     {
     public:
-    
         Widget(int widgetSize);
         ...
     };
@@ -1166,28 +1108,17 @@ APIs often require access to raw resources, so RAII classes should provide some 
     class ResourceManager
     {
     private:
-    
         Resource* resource_; // The managed resource
-    
     public:
-    
         ResourceManger()
-        {
-            resource = new Resource(); // Acquisition
-        }
+        { resource = new Resource(); } // Acquisition
     
         ~ResourceManager()
-        {
-            delete resource; // Release
-        }
+        { delete resource; } // Release
     
         Resource* get() const
-        {
-            return resource_; // Access to raw resource
-        }
-    
+        { return resource_; } // Access to raw resource
     private:
-    
         Resource(const Resource&); // No implementation to disable copying
         T& operator=(const Resource&); // No implementation to disable copying
     }
@@ -1206,11 +1137,8 @@ Pimpl is useful to suppress class member constructor exceptions when the class' 
     class Foo
     {
     public:
-    
         void bar();
-    
     private:
-    
         struct FooImpl;
         shared_ptr<FooImpl> pimpl_;
     };
@@ -1219,15 +1147,11 @@ Pimpl is useful to suppress class member constructor exceptions when the class' 
     struct FooImpl()
     {
         void bar()
-        {
-            // Do something, the actual implementation
-        }
+        { ... } // Do something, the actual implementation
     };
     
     void Foo::bar()
-    {
-        pimpl_->bar(); // Calling the implementation
-    }
+    { pimpl_->bar(); } // Calling the implementation
 
 
 <a name="CRTP"></a>
@@ -1303,21 +1227,18 @@ Now, to add a `log()` functionality to all derived classes, first add an `accept
     class Base
     {
     public:
-    
         virtual void accept(Visitor& v) = 0;
     };
     
     class Foo : public Base
     {
     public:
-    
         virtual void accept(Visitor& v) { v.visit(this); }
     };
     
     class Bar : public Base
     {
     public:
-    
         virtual void accept(Visitor& v) { v.visit(this); }
     };
     
@@ -1343,19 +1264,13 @@ Finally, create a `LogVisitor` derived class for each derived class with the imp
     {
     public:
         void visit(Foo* b)
-        {
-            cout << "Logging" << b->fooFunction();
-        }
+        { cout << "Logging" << b->fooFunction(); }
     
         void visit(Bar* b)
-        {
-            cout << "Logging" << b->barFunction();
-        }
+        { cout << "Logging" << b->barFunction(); }
     
         void visit(Baz* b)
-        {
-            cout << "Logging" << b->bazFunction();
-        }
+        { cout << "Logging" << b->bazFunction(); }
     };
 
 Usage example:
@@ -1370,19 +1285,16 @@ Usage example:
 <a name="NVI"></a>
 ### NVI
 
-Classes designed using the NVI pattern (Non-Virtual Interface) can be useful for perform pre-post operations on code fragments, such as invariant checking, locks etc.
+Classes designed using the NVI pattern (Non-Virtual Interface) can be useful for performing pre-post operations on code fragments, such as invariant checking, locks etc.
 
 **Example implementation:**
 
     class Base
     {
     private:
-    
         ReaderWriterLock lock_;
         SomeComplexDataType data_;
-    
     public:
-    
         void read_from(std::istream& in) // Note: non-virtual
         {
             lock_.acquire();
@@ -1400,9 +1312,7 @@ Classes designed using the NVI pattern (Non-Virtual Interface) can be useful for
         }
     
         virtual ~Base() {} // Virtual because Base is a polymorphic base class.
-    
     private:
-    
         virtual void read_from_impl(std::istream&) = 0;
         virtual void write_to_impl(std::ostream&) const = 0;
     };
@@ -1410,22 +1320,16 @@ Classes designed using the NVI pattern (Non-Virtual Interface) can be useful for
     class XMLReaderWriter : public Base
     {
     private:
-    
         virtual void read_from_impl (std::istream&) // Note: Not part of the client interface!
-        {
-            // Read XML.
-        }
+        { ... } // Read XML.
     
         virtual void write_to_impl (std::ostream&) const // Note: Not part of the client interface!
-        {
-            // Write XML.
-        }
+        { ... } // Write XML.
     };
     
     class TextReaderWriter : public Base
     {
     private:
-    
         virtual void read_from_impl (std::istream&) { ... }
         virtual void write_to_impl (std::ostream&) const { ... }
     };
