@@ -94,9 +94,9 @@ Never use `vector<bool>` as a container, instead use `deque<bool>` or a non-STL 
 
 Many `string` implementations use reference counting. If this is a problem, a `vector<char>` can be used instead. [Meyers01](#Meyers01) §13
 
-Using `swap()` on strings invalidates iterators, pointers and references to them. [Meyers01](#Meyers01) §1
+Using `swap()` on `string`s invalidates iterators, pointers and references to them. [Meyers01](#Meyers01) §1
 
-Using `c_str()` is the only safe and correct way to pass strings to a C API that expects a char array. [Meyers01](#Meyers01) §16
+Using `c_str()` is the only safe and correct way to pass `string`s to a C API that expects a char array. [Meyers01](#Meyers01) §16
 
 
 #### deque
@@ -113,11 +113,11 @@ Hash table based versions (which store objects unsorted and can provide amortize
 
 Once a key has been inserted into an associative container, that key must never change its relative position in the container. [Sutter02](#Sutter02) §8
 
-The standard associative containers are optimized for a mixed combination of inserts, erasures, and lookups. But many usage scenarios look more like this:
+The standard associative containers are optimized for a mixed combination of inserts, erasures, and lookups. But many usage scenarios look more like this: [Meyers01](#Meyers01) §23
 1. Setup phase, consisting mainly of many inserts (and possibly erasures)
 2. Lookup phase, consisting mainly of lookups (bulk of the time spent here!)
 3. Reorganize phase, modifying/replacing data, then returning to lookup again (if needed at all)
-In this type of scenario, replacing the container with a sorted `vector` is likely to improve both memory usage and speed considerably (due to caching), assuming that the lookup phase contains only lookups. [Meyers01](#Meyers01) §23
+In this type of scenario, replacing the container with a sorted `vector` is likely to improve both memory usage and speed considerably (due to caching), assuming that the lookup phase contains only lookups.
 
 **Example (vector used as a set):**
 
@@ -140,7 +140,7 @@ In this type of scenario, replacing the container with a sorted `vector` is like
         ...
     }
 
-Object comparison in associative containers is not done using equality (i.e. `operator==` for the contained type), but equivalence, as defined by a user-defined functor (defaulting to `less`) that can be designed to sort objects in custom ways. [Meyers01](#Meyers01) §19 §20 §21
+Object comparison in associative containers is not done using equality (i.e. `operator==` for the contained type), but equivalence, as defined by a user-defined functor (defaulting to `less()`) that can be designed to sort objects in custom ways. [Meyers01](#Meyers01) §19 §20 §21
 
 
 #### set
@@ -265,7 +265,7 @@ See [Erasing](#Erasing) about how to use range-based `erase()`.
 
 Only provided for Sequence containers.
 
-See [Erasing](#Erasing) about how to use range-based remove().
+See [Erasing](#Erasing) about how to use range-based `remove()`.
 
 
 #### Range-based assign()
@@ -321,13 +321,196 @@ To read characters from a stream efficiently, use `istreambuf_iterator`s: [Meyer
 Algorithms
 ----------
 
+Prefer the use of algorithms to hand-written loops whenever possible. There are many advantages: [Meyers01](#Meyers01) §43
+- Efficiency: Algorithms are often more efficient than the loops programmers produce.
+- Correctness: Writing loops is more subject to errors than is calling algorithms.
+- Maintainability: Algorithm calls often yield code that is clearer and more straightforward than the corresponding explicit loops.
+
+Algorithm functions like `count()`, `find()`, `lower_bound()`, `upper_bound()` and `equal_range()` often come as container member functions in addition to a non-member version.
+When there are container member functions with the same names as non-member algorithm functions, prefer the member function; it is likely to be optimized for use with the specific container type and works consistently with the container's other member functions. [Meyers01](#Meyers01) §44
+
+When using algorithms to expand containers, make sure the destination range is big enough.
+A common mistake is to use the container's `.end()` iterator as the destination. This is wrong, as it points outside of the container.
+The correct solution is often to use `back_inserter()`, `front_inserter()` or `inserter()`, depending on the use case and which of these are available.
+Using `.reserve()` in advance, for `vector`s and `string`s, can reduce the number of reallocations.
+When overwriting an entire container, the inserters are not necessary, but then use `.resize()` to ensure that for instance a `vector` can hold the new range of values. [Meyers01](#Meyers01) §30
+
+Functors typically make better algorithm parameters than functions, enabling optimization through inlining which often outperforms corresponding algorithm functions in C.
+It is also more portables, as different implementations of STL may have problems compiling code that uses algorithms used together with functions. [Meyers01](#Meyers01) §46
+
+Using STL algorithms to solve complex problems in one go can lead to "write-only code" that is very difficult to read and understand.
+Use good judgement and split up the problem or use alternative ways to solve the problem when it leads to clearer code. [Meyers01](#Meyers01) §47
+
+
+<a name="Searching"></a>
+### Searching
+
+There are many STL algorithms that can be used for searching. The options can be summarized as follows: [Meyers01](#Meyers01) §45
+
+If you just want to know if a specific value exists:
+- In an unsorted range: `find()`
+- In a sorted range: `binary_search()`
+- In a `set` or `map`: `.count()`
+- In a `multiset` or `multimap`: `.find()`
+
+If you want to know if a specific value exists and also where it is:
+- In an unsorted range: `find()`
+- In a sorted range: `equal_range()`
+- In a `set` or `map`: `.find()`
+- In a `multiset` or `multimap`: `.find()` or `.lower_bound()` (depending on if you need only one element or specifically the first one)
+
+If you want to find the first object with a value not preceding a specific value:
+- In an unsorted range: `find_if()`
+- In a sorted range: `lower_bound()`
+- In a `set` or `map`: `.lower_bound()`
+- In a `multiset` or `multimap`: `.lower_bound()`
+
+If you want to find the first object with a value succeeding a specific value:
+- In an unsorted range: `find_if()`
+- In a sorted range: `upper_bound()`
+- In a `set` or `map`: `.upper_bound()`
+- In a `multiset` or `multimap`: `.upper_bound()`
+
+If you want to count how many objects have a specific value:
+- In an unsorted range: `count()`
+- In a sorted range: `equal_range(), then distance()`
+- In a `set` or `map`: `.count()`
+- In a `multiset` or `multimap`: `.count()`
+
+If you want to find all objects that have a specific value:
+- In an unsorted range: `find() (iteratively)`
+- In a sorted range: `equal_range()`
+- In a `set` or `map`: `.equal_range()`
+- In a `multiset` or `multimap`: `.equal_range()`
+
+
+<a name="Sorting"></a>
+### Sorting
+
+There are many sorting algorithms offered by STL, and they solve different problems. Use the right one to solve the problem in the most efficient way: [Meyers01](#Meyers01) §31
+- To fully sort a `vector`, `string`, `deque` or `array`, use `sort()` or `stable_sort()`.
+- To put the top n elements of a `vector`, `string`, `deque` or `array` in front, use `partial_sort()`.
+- To identify the element at position n or identify the top n elements without moving any, use `nth_element()`.
+- To separate the elements of a standard sequence container or array into those that do and those that don't satisfy some criterion, use `partition()` or `stable_partition()`.
+- To (stably) sort a `list`, use its `.sort()` member function. Performing partial sorts etc. on `list`s has to be done indirectly.
+
+`sort()`, `partial_sort()` and `nth_element()` sorts elements with equivalent values any way they want to. `stable_sort()` is the only option that preserves the order of equivalent elements.
+
+`nth_element()` can be used not only to find the top n elements of a range, it can also be used to find the median value at a particular pecentile.
+
+`partition()` reorders elements in a range so that all elements satisfying a particular criterion are at the beginning of the range.
+
+The associative containers cannot be sorted (they already are).
+
+`partition()` and `stable_partition()` require only bidirectional iterators, so they can be used on all sequence container types.
+
+The sorting algorithms, in order of performance (best to worst) are:
+1. `partition()`
+2. `stable_partition()`
+3. `nth_element()`
+4. `partial_sort()`
+5. `sort()`
+6. `stable_sort()`
+
+Many algorithms require containers to be sorted: [Meyers01](#Meyers01) §34
+- `binary_search()`
+- `lower_bound()`
+- `upper_bound()`
+- `equal_range()`
+- `set_union()`
+- `set_intersection()`
+- `set_difference()`
+- `set_symmetric_difference()`
+- `merge()`
+- `inplace_merge()`
+- `includes()`
+- `unique()` (not required but customary)
+- `unique_copy()` (not required but customary)
+
+By default, binary_search assumes that a range is sorted by `less()`, so when this is not the case it must be passed the same comparison function that the container was sorted with.
+
+
+<a name="Erasing"></a>
+### Erasing
+
+To erase objects from a container, different methods should be used depending on the type of container: [Meyers01](#Meyers01) §9 §32
+- For the `list` container, the best method is: `c.remove(value);`
+- For contiguous memory containers (`vector`, `string`, and `deque`), the best method is the "erase-remove-idiom": `c.erase(remove(c.begin(), c.end(), value), c.end());`
+- For associative containers, the only method is: `c.erase(value);`
+
+For predicate-based erasing in sequence containers, simply use `remove_if()` instead of `remove()`. For the associative containers, there are two approaches:
+
+    // Easier but less efficient:
+    Container<int> c;
+    Container<int> goodValues; // Temporary containing values to keep
+    remove_copy_if(c.begin(), c.end(), inserter(goodValues, goodValues.end()), badValueFunction);
+    c.swap(goodValues);
+    
+    // Harder but more efficient:
+    Container<int> c;
+    for (Container<int>::iterator i = c.begin(); i != c.end(); /*nothing*/) {
+        if (badValueFunction(*i))
+            c.erase(i++) // Postfix increment!
+        else
+            ++i;
+    }
+
+To do something in addition to erasing with each element (like logging), for associative containers the second version above just needs to be extended. For sequence containers the return value of `erase()` must to be used:
+
+    for (Container<int>::iterator i = c.begin(); i != c.end(); ) {
+        if (badValueFunction(*i)) {
+            // Do something extra
+            i = c.erase();
+        } else
+            ++i;
+    }
+
+Despite its name, `remove()` doesn't actually remove elements from containers. It just moves elements that are not to be removed up to the front of the container, overwriting as it goes, and returning the iterator to the new logical end of the range.
+Feeding this into the range-based version of `erase()` will erase what's left at the end of the container. The same goes for `remove_if()` and `unique()`. For lists, the `.unique()` member function does full erasing, just like `.remove()`. [Meyers01](#Meyers01) §32 [Sutter02}(#Sutter02) §2
+
+Erasing in a container of pointers can easily lead to resource leaks. One solution is to iterate over the container, deleting and setting pointers to null, then using the erase-remove idiom to eliminate the null pointers in the container (assuming no null pointers should be kept). [Meyers01](#Meyers01) §32
+
+
+<a name="Summarizing"></a>
+### Summarizing
+
+To perform custom summarizing of elements in some range, use `accumulate()` together with a stateless binary functor returning objects of the type the container holds, or `for_each()` together with a unary functor storing the sum and a function to retrieve the final result afterwards. [Meyers01](#Meyers01) §37
+
+
+Error messages
+--------------
+
+STL error messages can be very hard to decipher. The following are some useful hints: [Meyers01](#Meyers01) §49
+
+For `vector` and `string`, iterators are sometimes pointers, so compiler diagnostics may refer to pointer types if you've made a mistake with an iterator.
+For example, if your source code refers to `vector<double>::iterator`s, compiler messages will sometimes mention `double*` pointers.
+
+Messages mentioning `back_inserter_operator`, `front_inserter_operator`, or `insert_iterator` almost always mean you've made a mistake calling `back_inserter()`, `front_inserter()`, or `inserter()`, respectively. (`back_inserter()` returns an object of type `back_inserter_iterator`, etc.)
+If you didn't call these functions, some function you called (directly or indirectly) did.
+
+Similarly, if you get a message mentioning `binder1st` or `binder2nd`, you've probably made a mistake using `bind1st()` or `bind2nd()`. (`bind1st()` returns an object of type `binder1st` etc.)
+
+Output iterators (e.g. `ostream_iterator`s, `ostreambuf_iterator`s, and the iterators returned from `back_inserter()`, `front_inserter()` and `inserter`) do their outputting or inserting work inside assignment operators, so if you've made a mistake with one of these iterator types, you're likely to get a message complaining about something inside an assignment operator you've never heard of.
+
+If you get an error message originating from inside the implementation of an STL algorithm (i.e. the source code giving rise to the error is in `<algorithm>`), there's probably something wrong with the types you're trying to use with that algorithm. For example, you may be passing iterators of the wrong category.
+
+If you're using a common STL component like `vector`, `string`, or the `for_each()` algorithm, and a compiler says it has no idea what you're talking about, you've probably failed to `#include` a required header file.
+
+
+Nonstandard components
+----------------------
+
+Hashed associative containers: `hash_set`, `hash_multiset`, `hash_map`, and `hash_multimap`
+
+Singly linked list: `slist`
+
+Container for very large strings: `rope`
+
+Nonstandard functors and adapters: `select1st()`, `select2nd()` (very useful for `map`s and `multimap`s), `identity()`, `project1st()`, `project2nd()`, `compose1()`, `compose2()`, etc.
+
 
 References
 ----------
-
-<a name="Meyers05"></a>
-[Meyers05]
-"Effective C++", ISBN 0-321-33486-7
 
 <a name="Meyers96"></a>
 [Meyers96]
@@ -348,3 +531,9 @@ References
 <a name="Sutter05"></a>
 [Sutter05]
 "C++ coding standards - 101 Rules, Guidelines, and Best Practices", ISBN 0-321-11358-6
+
+[The SGI STL site](http://www.sgi.com/tech/stl/)
+
+[The STLport site](http://www.stlport.org/)
+
+[The Boost site](http:www.boost.org/)
