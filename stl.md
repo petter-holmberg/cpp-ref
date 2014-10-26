@@ -22,10 +22,11 @@ Containers
 ----------
 
 The STL containers can be subdivided into two categories:
-1.  *Sequence containers:*
+
+1.  [Sequence containers](#SequenceContainers):
     Containers oriented towards sequential access of objects.
     The standard sequence containers are `vector`, `string`, `deque` and `list`.
-2.  *Associative containers:*
+2.  [Associative containers](#AssociativeContainers):
     Containers oriented towards random access of objects.
     The standard associative containers are `set`, `multiset`, `map` and `multimap`.
 
@@ -38,7 +39,7 @@ Containers of `new`:ed pointers are prone to leak memory. The best way to avoid 
 
 `vector` is usually the right container to use by default when it is not obvious that another one should be used, it offers a lot of useful properties that other containers don't provide. [Sutter05](#Sutter05) §76
 
-A *Sequence container* is the right option when element position matters, especially for insertion. Otherwise, an *Associative container* is a viable option. [Meyers01](#Meyers01) §1.
+A [Sequence container](#SequenceContainers) is the right option when element position matters, especially for insertion. Otherwise, an [Associative container](#AssociativeContainer) is a viable option. [Meyers01](#Meyers01) §1.
 
 It is also useful to categorize containers in terms of memory layout: [Meyers01](#Meyers01) §1
 1.  *Contiguous memory containers:*
@@ -48,7 +49,7 @@ It is also useful to categorize containers in terms of memory layout: [Meyers01]
 2.  *Node-based containers:*
     Containers that store individual elements per chunk of memory.
     These containers are very efficient at insertion and deletion, but can be inefficient when it comes to access.
-    The node-based containers are `list` and all associative containers.
+    The node-based containers are `list` and all [Associative containers](#AssociativeContainers).
 
 If it is important to avoid movement of existing container elements when inserting or erasing elements, A *Node-based container* is the only option. [Meyers01](#Meyers01) §1
 
@@ -62,12 +63,15 @@ STL containers are not thread-safe by default. The standard suggests that:
 Not all implementations respect even these guarantees. [Meyers01](#Meyers01) §12
 
 All standard containers implement the Strong Guarantee for all operations, with two exceptions: [Sutter99](#Sutter99) §18
+
 1. Multi-element inserts ("iterator range" inserts) are never strongly exception-safe.
 2. For `vector<T>` and `deque<T>`, all inserts and erases are strongly exception-safe only as long as `T`'s copy constructor and assignment operator do not throw; inserting into a `vector<string>` or a `vector<vector<int>>`, for example, are not strongly exception-safe.
+
 This means that classes having container members and using the aforementioned operations must do the work themselves to ensure that their state is predictable if exceptions occur.
 To do this, insert and erase in a copy of the container, then use `swap()` to switch over to using the new version after the copy-and-change steps have succeeded.
 
 
+<a name="SequenceContainers"></a>
 ### Sequence containers
 
 The standard sequence containers are `vector`, `string`, `deque` and `list`.
@@ -105,6 +109,7 @@ While `vector` should be the default sequence container of choice, `deque` shoul
 It offers constant-time `insert()` and `erase()` operations at both ends, uses memory in an operating system-friendly way (large `deque`s can be split in multiple blocks of memory of a suitable size), is somewhat easier to use and inherently more efficient for growth. [Sutter02](#Sutter02) §7
 
 
+<a name="AssociativeContainers"></a>
 ### Associative containers
 
 The standard associative containers are `set`, `multiset`, `map` and `multimap`. They all store their elements sorted, typically using some kind of balanced binary tree.
@@ -114,9 +119,11 @@ Hash table based versions (which store objects unsorted and can provide amortize
 Once a key has been inserted into an associative container, that key must never change its relative position in the container. [Sutter02](#Sutter02) §8
 
 The standard associative containers are optimized for a mixed combination of inserts, erasures, and lookups. But many usage scenarios look more like this: [Meyers01](#Meyers01) §23
+
 1. Setup phase, consisting mainly of many inserts (and possibly erasures)
 2. Lookup phase, consisting mainly of lookups (bulk of the time spent here!)
 3. Reorganize phase, modifying/replacing data, then returning to lookup again (if needed at all)
+
 In this type of scenario, replacing the container with a sorted `vector` is likely to improve both memory usage and speed considerably (due to caching), assuming that the lookup phase contains only lookups.
 
 **Example (vector used as a set):**
@@ -214,7 +221,7 @@ It can also be used to both clear a container and to reduce its capacity to the 
 
 The range-based functions takes two iterators, defining a range into a container. They should be preferred to their single-element counterparts because they are easier to write, express their intent more clearly, and exhibit better performance. [Meyers01](#Meyers01) §5
 
-All containers offer a *Range-based constructor* and *Range-based erase()*}. All *Sequence containers* offer a *Range-based insert()* and *Range-based assign()*.
+All containers offer a *Range-based constructor* and *Range-based erase()*. All [Sequence containers](#SequenceContainers) offer a *Range-based insert()* and *Range-based assign()*.
 
 
 #### Range-based constructor
@@ -263,7 +270,7 @@ See [Erasing](#Erasing) about how to use range-based `erase()`.
 
 #### Range-based remove()
 
-Only provided for Sequence containers.
+Only provided for [Sequence containers](#SequenceContainers).
 
 See [Erasing](#Erasing) about how to use range-based `remove()`.
 
@@ -391,7 +398,7 @@ There are many sorting algorithms offered by STL, and they solve different probl
 - To fully sort a `vector`, `string`, `deque` or `array`, use `sort()` or `stable_sort()`.
 - To put the top n elements of a `vector`, `string`, `deque` or `array` in front, use `partial_sort()`.
 - To identify the element at position n or identify the top n elements without moving any, use `nth_element()`.
-- To separate the elements of a standard sequence container or array into those that do and those that don't satisfy some criterion, use `partition()` or `stable_partition()`.
+- To separate the elements of a standard [Sequence container](#SequenceContainers) or array into those that do and those that don't satisfy some criterion, use `partition()` or `stable_partition()`.
 - To (stably) sort a `list`, use its `.sort()` member function. Performing partial sorts etc. on `list`s has to be done indirectly.
 
 `sort()`, `partial_sort()` and `nth_element()` sorts elements with equivalent values any way they want to. `stable_sort()` is the only option that preserves the order of equivalent elements.
@@ -400,9 +407,9 @@ There are many sorting algorithms offered by STL, and they solve different probl
 
 `partition()` reorders elements in a range so that all elements satisfying a particular criterion are at the beginning of the range.
 
-The associative containers cannot be sorted (they already are).
+The [Associative containers](#AssociativeContainers) cannot be sorted (they already are).
 
-`partition()` and `stable_partition()` require only bidirectional iterators, so they can be used on all sequence container types.
+`partition()` and `stable_partition()` require only bidirectional iterators, so they can be used on all [Sequence container](#SequenceContainers) types.
 
 The sorting algorithms, in order of performance (best to worst) are:
 1. `partition()`
@@ -436,9 +443,9 @@ By default, binary_search assumes that a range is sorted by `less()`, so when th
 To erase objects from a container, different methods should be used depending on the type of container: [Meyers01](#Meyers01) §9 §32
 - For the `list` container, the best method is: `c.remove(value);`
 - For contiguous memory containers (`vector`, `string`, and `deque`), the best method is the "erase-remove-idiom": `c.erase(remove(c.begin(), c.end(), value), c.end());`
-- For associative containers, the only method is: `c.erase(value);`
+- For [Associative containers](#AssociativeContainers), the only method is: `c.erase(value);`
 
-For predicate-based erasing in sequence containers, simply use `remove_if()` instead of `remove()`. For the associative containers, there are two approaches:
+For predicate-based erasing in [Sequence containers](#SequenceContainers), simply use `remove_if()` instead of `remove()`. For the [Associative containers](#AssociativeContainers), there are two approaches:
 
     // Easier but less efficient:
     Container<int> c;
@@ -455,7 +462,7 @@ For predicate-based erasing in sequence containers, simply use `remove_if()` ins
             ++i;
     }
 
-To do something in addition to erasing with each element (like logging), for associative containers the second version above just needs to be extended. For sequence containers the return value of `erase()` must to be used:
+To do something in addition to erasing with each element (like logging), for [Associative containers](#AssociativeContainers) the second version above just needs to be extended. For [Sequence containers](#SequenceContainers) the return value of `erase()` must to be used:
 
     for (Container<int>::iterator i = c.begin(); i != c.end(); ) {
         if (badValueFunction(*i)) {
@@ -503,6 +510,7 @@ Nonstandard components
 Hashed associative containers: `hash_set`, `hash_multiset`, `hash_map`, and `hash_multimap`
 
 Singly linked list: `slist`
+
 
 Container for very large strings: `rope`
 
