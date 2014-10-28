@@ -484,7 +484,7 @@ To do something in addition to erasing with each element (like logging), for [As
     }
 
 Despite its name, `remove()` doesn't actually remove elements from containers. It just moves elements that are not to be removed up to the front of the container, overwriting as it goes, and returning the iterator to the new logical end of the range.
-Feeding this into the range-based version of `erase()` will erase what's left at the end of the container. The same goes for `remove_if()` and `unique()`. For lists, the `.unique()` member function does full erasing, just like `.remove()`. [Meyers01](#Meyers01) §32 [Sutter02}(#Sutter02) §2
+Feeding this into the range-based version of `erase()` will erase what's left at the end of the container. The same goes for `remove_if()` and `unique()`. For lists, the `.unique()` member function does full erasing, just like `.remove()`. [Meyers01](#Meyers01) §32 [Sutter02](#Sutter02) §2
 
 Erasing in a container of pointers can easily lead to resource leaks. One solution is to iterate over the container, deleting and setting pointers to null, then using the erase-remove idiom to eliminate the null pointers in the container (assuming no null pointers should be kept). [Meyers01](#Meyers01) §32
 

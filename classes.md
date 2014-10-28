@@ -174,7 +174,7 @@ Never make exception safety an afterthought. Exception safety affects a class's 
 
 Observe the canonical exception-safety rules:  [Sutter99](#Sutter99) §8-18
 
-1. Never allow an exception to escape from a destructor or from an overloaded operator delete() or operator delete[](); write every destructor and deallocation function as though it had an exception specification of `throw()` (in C++1, use `nothrow`).
+1. Never allow an exception to escape from a destructor or from an overloaded operator delete() or operator delete[](); write every destructor and deallocation function as though it had an exception specification of `throw()` (in C++11, use `nothrow`).
 
 2. Always use the [RAII Idiom](#RAII) to isolate resource ownership and management.
 
