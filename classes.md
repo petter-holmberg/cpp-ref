@@ -173,14 +173,19 @@ Provide the strongest possible exception guarantee for each function, and docume
 Never make exception safety an afterthought. Exception safety affects a class's design. It is never "just an implementation detail". [Sutter99](#Sutter99) §5
 
 Observe the canonical exception-safety rules:  [Sutter99](#Sutter99) §8-18
+
 1. Never allow an exception to escape from a destructor or from an overloaded operator delete() or operator delete[](); write every destructor and deallocation function as though it had an exception specification of `throw()` (in C++1, use `nothrow`).
+
 2. Always use the [RAII Idiom](#RAII) to isolate resource ownership and management.
+
 3. In each function, take all the code that might emit an exception and do all that work safely off to the side. Only then, when you know that the real work has succeeded, should you modify the program state (and clean up) using only non-throwing operations.
+
 
 #### No-fail Guarantee
 
 The No-fail Guarantee is the strongest: The function simply cannot fail. The caller doesn't need to check for any errors.
 A prerequisite for any destructor, deallocation function or `swap()` function. 
+
 
 #### Strong Guarantee
 
@@ -188,6 +193,7 @@ The Strong Guarantee is to ensure that failure leaves the program in the (visibl
 The immediate caller should check for failures (if it can handle them correctly on that level) but doesn't need to worry about having changed state just by making the failed call.
 
 The Strong Guarantee can often be implemented via copy-and-swap, but the Strong Guarantee is not practical for all functions. [Meyers05](#Meyers05) §29
+
 
 #### Basic Guarantee
 
