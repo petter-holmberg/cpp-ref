@@ -913,6 +913,14 @@ By default, avoid providing implicit conversion operators of the form `operator 
 
 When overloading operators, provide multiple versions with different argument types, when applicable, to prevent wasteful implicit type conversions (e.g. for string comparison) [Sutter05](#Sutter05) §29
 
+For all operators where you have to choose to either implement them as a member function or a non-member function, use the following rules of thumb to decide:
+
+- If it is a unary operator, implement it as a member function.
+- If a binary operator treats both operands equally (it leaves them unchanged), implement this operator as a non-member function.
+- If a binary operator does not treat both of its operands equally (usually it will change its left operand), it might be useful to make it a member function of its left operand’s type, if it has to access the operand's private parts.
+
+The binary operators `=` (assignment), `[]` (array subscription), `->`` (member access), as well as the n-ary `()` (function call) operator, must always be implemented as member functions, because the syntax of the language requires them to.
+
 
 #### operator=
 
@@ -927,9 +935,35 @@ Explicitly invoke all base assignment operators and assign all data members. [Su
 Don't return const T&, because it prevents objects from being placed in std containers. [Sutter05](#Sutter05) §55
 
 
+#### Relational operators
+
+The relational operators are:
+- `operator==`
+- `operator!=`
+- `operator<`
+- `operator>`
+- `operator<=`
+- `operator=>`
+
+Standard algorithms such as `std::sort` and containers such as `std::set` expect `operator<` to be defined, by default, for the user-provided types. Typically, `operator<` is provided and the other relational operators are implemented in terms of `operator<`.
+
+    inline bool operator< (const X& lhs, const X& rhs) { /* do actual comparison */ }
+    inline bool operator> (const X& lhs, const X& rhs) {return rhs < lhs;}
+    inline bool operator<=(const X& lhs, const X& rhs) {return !(lhs > rhs);}
+    inline bool operator>=(const X& lhs, const X& rhs) {return !(lhs < rhs);}
+
+Likewise, the inequality operator is typically implemented in terms of `operator==`:
+
+    inline bool operator==(const X& lhs, const X& rhs) { /* do actual comparison */ }
+    inline bool operator!=(const X& lhs, const X& rhs) {return !(lhs == rhs);}
+
+The `<utility>` namespace `std::rel_ops` defines template functions that derive their behavior from `operator==` and `operator<`. This avoids the necessity to declare all six relational operators for every complete type; By defining only `operator==` and `operator<`, and importing this namespace, all six operators will be defined for the type (they will not be selected by argument-dependent lookup when not importing it, though).
+Notice that using this namespace introduces these overloads for all types not defining their own. Still, because non-template functions take precedence over template functions, any of these operators may be defined with a different behavior for a specific type.
+
+
 #### Binary arithmetic and bitwise operators
 
-The binary arithmetic operators are:
+The binary arithmetic and bitwise operators are:
 - `operator+`
 - `operator-`
 - `operator*`
@@ -942,6 +976,23 @@ The binary arithmetic operators are:
 - `operator>>`
 
 If implementing one of these, implement its corresponding compound assignment operator as well, and implement it in terms of that (except if that modifies the left-hand side so significantly that it is more advantageous to do the reverse, e.g. in the case of multiplication of complex numbers). [Meyers96](#Meyers96) §22, [Sutter05](#Sutter05) §27
+
+Binary operators are typically implemented as non-members to maintain symmetry (for example, when adding a complex number and an integer, if `operator+` is a member function of the complex type, then only complex+integer would compile, and not integer+complex).
+
+    class T {
+    public:
+        T& operator+=(const T& rhs) // Compound assignment (does not need to be a member, but often is, to modify the private members)
+        {
+            /* Addition of rhs to *this takes place here */
+            return *this; // Return the result by reference
+        }
+    
+        // Friends defined inside class body are inline and are hidden from non-ADL lookup
+        friend T operator+(T lhs, const T& rhs) // Passing first arg by value helps optimize chained a+b+c. alternatively, both parameters may be const references.
+        {
+            return lhs += rhs; // Reuse compound assignment and return the result by value
+        }
+    };
 
 
 #### Compound assignment operators
@@ -1000,13 +1051,54 @@ Don't return const in the postfix versions (used to be good advice but in C++11 
 
 The streaming operators, `operator<<` and `operator>>` are always implemented as non-member functions. [Sutter05](#Sutter05) §57
 
+    std::ostream& operator<<(std::ostream& os, const T& obj)
+    {
+        // write obj to stream
+        return os;
+    }
+    
+    std::istream& operator>>(std::istream& is, T& obj)
+    {
+        // read obj from stream
+        if( /* T could not be constructed */ )
+            is.setstate(std::ios::failbit);
+        return is;
+    }
+
+
+#### operator()
+
+When a user-defined class overloads the function call operator, `operator()`, it becomes a function object type. Many standard algorithms, from `std::sort` to `std::accumulate` accept objects of such types to customize behavior. There are no particularly notable canonical forms of `operator()`, but to illustrate the usage:
+
+    struct Sum {
+        int sum;
+        Sum() : sum(0) {}
+        void operator()(int n) { sum += n; }
+    };
+    Sum s = std::for_each(v.begin(), v.end(), Sum());
+
 
 #### operator[]
 
 The index operator `operator[]` is often used to provide array-like access syntax for user-defined classes. STL implements `operator[]` in the `std::string` and `std::map` classes. `std::string` simply returns a character reference as a result of `operator[]` whereas `std::map` returns a reference to the value given its key. In both cases, the returned reference can be directly read or written to.
 The `std::string` and `std::map` classes have no knowledge or has no control over whether the reference is used for reading or for modification. Sometimes, however, it is useful to detect how the value is being used. In this case, `operator[]` is often implemented to distinguish reads from writes by returning a proxy object. [Meyers96](#Meyers96) §30
 
-#### operator&, operator||, operator,
+User-defined classes that provide array-like access that allows both reading and writing typically define two overloads for `operator[]`: const and non-const variants:
+
+    struct T {
+        value_t& operator[](std::size_t idx)
+        {
+            /* Actual access, e.g. return mVector[idx]; */
+        };
+    
+        const value_t& operator[](std::size_t idx) const
+        {
+            // Either actual access, or reuse non-const overload, for example, as follows:
+            return const_cast<T&>(*this)[idx];
+        };
+    };
+
+#### operator&&, operator||, operator,
 
 Never overload these operators! [Meyers96](#Meyers96) §7, [Sutter05](#Sutter05) §30
 
@@ -1117,17 +1209,17 @@ APIs often require access to raw resources, so RAII classes should provide some 
         Resource* resource_; // The managed resource
     public:
         ResourceManger()
-        { resource = new Resource(); } // Acquisition
+        { resource_ = new Resource(); } // Acquisition
     
         ~ResourceManager()
-        { delete resource; } // Release
+        { delete resource_; } // Release
     
         Resource* get() const
         { return resource_; } // Access to raw resource
     private:
         Resource(const Resource&); // No implementation to disable copying
-        T& operator=(const Resource&); // No implementation to disable copying
-    }
+        Resource& operator=(const Resource&); // No implementation to disable copying
+    };
 
 
 <a name="Pimpl"></a>
