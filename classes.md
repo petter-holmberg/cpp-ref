@@ -847,7 +847,19 @@ Never write a copy assignment operator that relies on a check for self-assignmen
 
 ### swap
 
-Provide a no-fail `swap()` function to efficiently and infallibly swap the contents of this object with another's. It has many potential uses (primarily in [Value classes](#ValueClasses)), e.g. to implement assignment easily while maintaining the strong exception guarantee for objects composed of other objects that provide the Strong Guarantee. [Meyers05](#Meyers05) §25, [Sutter99](#Sutter99) §12 [Sutter02](#Sutter02) §22 [Sutter05](#Sutter05) §56
+The `std::swap()` function is typically implemented like this, utilizing the class's copy constructor and copy assignment operator:
+
+    namespace std {
+      template <typename T>
+      void swap(T& a, T& b)
+      {
+        T temp(a);
+        a = b;
+        b = temp;
+      }
+    }
+
+For classes where this implementation is inefficient (for example classes consisting primarily of pointers to other types containing the real data), provide a no-fail `swap()` function to efficiently and infallibly swap the contents of this object with another's. It has many potential uses (primarily in [Value classes](#ValueClasses)), e.g. to implement assignment easily while maintaining the strong exception guarantee for objects composed of other objects that provide the Strong Guarantee. [Meyers05](#Meyers05) §25, [Sutter99](#Sutter99) §12 [Sutter02](#Sutter02) §22 [Sutter05](#Sutter05) §56
 
 If you offer a member `swap()`, also offer a non-member `swap()` that calls the member. For classes (not templates), specialize `std::swap()` too. When calling `swap()`, employ a `using` declaration for `std::swap()`, then call `swap()` without namespace qualification. It's fine to totally specialize `std` templates for user-defined types, but never try to add something completely new to `std`. [Meyers05](#Meyers05) §25
 
@@ -860,12 +872,12 @@ If you offer a member `swap()`, also offer a non-member `swap()` that calls the 
         int member2_;
     public:
         // Member swap (first swap bases, then members)
-        void swap(T& rhs) // noexcept
+        void swap(Derived& rhs) // noexcept
         {
             using std::swap;
-            B::swap(rhs);                 // Swap base class members (user-defined)
+            Base::swap(rhs);              // Swap base class members (user-defined)
             member1_.swap(rhs.member1_);  // User-defined, using member version
-            swap(member2_, rhs.member2_); // Built-in, using std::swap
+            swap(member2_, rhs.member2_); // Built-in std::swap
         }
     
         // Copy assignment operator utilizing swap (traditional)
@@ -879,13 +891,12 @@ If you offer a member `swap()`, also offer a non-member `swap()` that calls the 
         // Copy assignment operator utilizing swap (pass by value, more elegant in C++03 but ambiguous together with move assignment operator in C++11)
         T& operator=(T temp)
         {
-            using std::swap;
             swap(temp);
             return *this;
         }
     };
     
-    // Non-member swap as std template specialization
+    // Non-member swap as std template specialization, calling the member swap
     namespace std
     {
         template <>
@@ -895,16 +906,18 @@ If you offer a member `swap()`, also offer a non-member `swap()` that calls the 
     
     // Template example
     template <typename T>
-    class X
+    class C
     {
         ...
-        void swap(X<T>& rhs)
+        // Member swap template
+        void swap(C<T>& rhs)
         { ... }
     };
     
+    // Non-member swap template calling the member swap
     template <typename T>
-    void swap(X<T>& x1, X<T>& x2)
-    { x1.swap(x2); }
+    void swap(C<T>& a, C<T>& b)
+    { a.swap(b); }
 
 
 ### Operators
