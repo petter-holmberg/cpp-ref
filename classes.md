@@ -4,7 +4,7 @@ C++ classes quick reference
 This document is a collection of design guidelines for C++ classes. It is intended to be used as a quick reference when designing new classes or refactoring old ones.
 For brevity and simplicity of use, it does not discuss at length the *whys* of the guidelines, but instead presents references to further reading about the subject.
 
-The guidelines are currently focused on C++98 use but features some notes about later versions.
+The guidelines cover C++98, C++11 and C++14, with notes on differences between the versions.
 
 
 General class design guidelines
@@ -172,9 +172,9 @@ Provide the strongest possible exception guarantee for each function, and docume
 
 Never make exception safety an afterthought. Exception safety affects a class's design. It is never "just an implementation detail". [Sutter99](#Sutter99) §5
 
-Observe the canonical exception-safety rules:  [Sutter99](#Sutter99) §8-18
+Observe the canonical exception-safety rules: [Sutter99](#Sutter99) §8-18
 
-1. Never allow an exception to escape from a destructor or from an overloaded operator delete() or operator delete[](); write every destructor and deallocation function as though it had an exception specification of `throw()` (in C++11, use `nothrow`).
+1. Never allow an exception to escape from a destructor or from an overloaded `operator delete` or `operator delete[]`; write every destructor and deallocation function as though it had an exception specification of `throw()` or `noexcept`. In C++11, `noexcept` is default for destructors, `operator delete` and `operator delete[]` and does not need to be explicitly declared.
 
 2. Always use the [RAII Idiom](#RAII) to isolate resource ownership and management.
 
@@ -311,10 +311,10 @@ Base classes are the building blocks of class hierarchies. They establish interf
     
         // Non-virtual functions, defining interface
      private:
-        // Copy constructor not implemented to disable copying
+        // Copy constructor not implemented to disable copying (C++98, in C++11 make public and deleted)
         ValueClass(const ValueClass& rhs);
     
-        // Copy assignment operator not implemented to disable copying
+        // Copy assignment operator not implemented to disable copying (C++98, in C++11 make public and deleted)
         ValueClass& operator=(const ValueClass& rhs);
     
         // Virtual functions (protected if needed), defining implementation details
@@ -582,8 +582,8 @@ A C++ mixin class is a template class that is parameterized on its [Base class](
 Ancillary classes support specific [idioms](#CppIdioms). They should be easy to use correctly and hard to use incorrectly.
 
 
-Class-related keywords
-----------------------
+Class-related keywords and identifiers
+--------------------------------------
 
 The following is a summary of the important class-related keywords in C++
 
@@ -630,6 +630,16 @@ a "pure virtual" function is one declared as `virtual f() = 0;` and forces deriv
 `virtual` can also be used before the name of the base class in a derived class definition to implement virtual inheritance, solving the diamond inheritance problem of having multiple base class versions of the same function.
 Under virtual inheritance, a copy of the base class will not be included in the derived class and accessed directly. Instead, it will contain a (virtual) pointer to the base class so that further derived classes can inherit from multiple classes with the same base, and not get multiple, ambiguous implementations of inherited functions.
 The constructor of a base class will not be called when inherited virtually, instead it will be called by the next class that inherits non-virtually from it.
+
+
+### override
+
+In C++11, the identifier `override` is used to explicitly declare that a virtual function in a derived class overrides a base class implementation. This is useful because there are many subtle ways to accidentally not override a base class function. With `override` the compiler will catch these errors. [Meyers14](#Meyers14) §10.
+
+
+### final
+
+In C++11, the identifier `final` is used to explicitly declare that a virtual function cannot be overridden in derived classes. `final` may also be applied to a class, in which case the class is prohibited from being used as a base class.
 
 
 ### explicit
@@ -705,13 +715,61 @@ It is common to use friend functions for operator overloading, where an overload
 
 `operator` is not a standalone keyword, but prefix to a function name defining an overloaded operator (e.g. `Foo operator+(Foo &other);`. This name is nothing more than a glorified function name, and the function may in fact be called using it normally, but also allows it to be used with a corresponding C++ operator's syntax (see *Operators*).
 
+
 ### throw
 
 Causes the compiler to inject implicit try/catch blocks around the function body to enforce via run-time checking that the function does in fact throw only the specified exceptions.
 
 As a rule of thumb, never ever use it, unless forced to when overriding a base class virtual function that uses it and you cannot remove that too! In that case, use the identical exception specification for the overriding function. [Meyers96](#Meyers96) §14, [Sutter05](#Sutter05) §75
     
-C++11 has deprecated the `throw` keyword. The `noexcept` keyword was added to supersede the empty throw specification.
+C++11 has deprecated the `throw` keyword. The `noexcept` keyword was added to supersede `throw()`, the empty throw specification.
+
+
+### noexcept
+
+In C++11, the `noexcept`  keyword declares that the function (sometimes conditionally) will not throw exceptions. `noexcept` functions are more optimizable than non-`noexcept` functions and clearly communicates intent to clients. `noexcept` is particularly valuable for the move operations, `swap()`, memory deallocation functions, and destructors. [Meyers14](#Meyers14) §14
+
+Declaring a function `noexcept` makes it hard to remove that promise later, without breaking client code. Use it only when willing to commit to a `noexcept` implementation over the long term.
+
+
+### delete
+
+In C++11, the keyword `delete` is used to explicitly mark functions as deleted. This is primarily useful to disable compiler-generated constructors, but can also be used inside and outside classes to prevent functions to be called through implicit type conversions. [Meyers14](#Meyers14) §10
+
+**Example:**
+
+    Class Uncopyable
+    {
+    public:
+        Uncopyable(const Uncopyable&) = delete;
+        Uncopyable& operator=(const Uncopyable&) = delete;
+    
+        bool takesInt(int number);
+        bool takesInt(char) = delete;
+        bool takesInt(bool) = delete;
+        bool takesInt(double) = delete;
+    };
+
+
+Reference qualifiers
+--------------------
+
+In C++11, class member functions may be declared with reference qualifiers. This makes it possible to limit a function's accessibility to lvalue or rvalue objects. [Meyers14](#Meyers14) §11
+
+**Example:**
+
+    class Widget
+    {
+    public:
+        void doWork() &;  // Called when *this is an lvalue
+        void doWork() &&; // Called when *this is an rvalue
+    }
+    
+    Widget w;
+    w.doWork()M // calls & version
+    
+    Widget makeWidget();
+    makeWidget().doWork(); // calls && version
 
 
 Functions with special semantics
@@ -724,7 +782,7 @@ Functions that tie in to built-in features of C++ require extra special care bec
 
 The Big Four functions require special treatment because they will be implemented by the compiler if you do not provide an implementation of your own. Therefore, they should not be implemented if the default compiler implementation is correct, but this choice should always be documented to assure users of your class that you know this is the case and didn't just forget or was unaware of that fact. [Meyers05](#Meyers05) §5
 
-Explicitly disallow the use of compiler-generated functions you do not want, by declaring them private and providing no implementation. [Meyers05](#Meyers05) §6
+In C++98, explicitly disallow the use of compiler-generated functions you do not want, by declaring them private and providing no implementation. In C++11, declare the functions public and deleted. [Meyers05](#Meyers05) §6, [Meyers14](#Meyers14) §11
 
 
 #### Constructor
@@ -753,6 +811,8 @@ If the class legally can have "optional" members that may throw during construct
 
 Making the constructor(s) private prevents object instantiation. A function made `friend` of the class, or defined `static` in the class, will be allowed to access the private constructor and can therefore be useful as a means to control object instantiation, by holding static instances inside it. [Meyers96](#Meyers96) §26
 
+During constructor overload resolution, braced intializers (C++11) are matched to std::intializer_list parameters if at all possible, even if other constructors offer seemingly better matches. An example of where the choice can make a significant difference is creating a `std::vector<numeric type>` with two arguments. [Meyers14](#Meyers14) §7
+
 
 #### Destructor
 
@@ -772,7 +832,7 @@ For a [Base class](#BaseClasses):
 
 Destructors need to release resources allocated by the class in order to prevent leaks. [Meyers96](#Meyers96) §10
 
-Destructors must always provide the no-fail guarantee. If a destructor calls a function that may throw, always wrap the call in a try/catch block that prevents the exception from escaping. [Meyers05](#Meyers05) §8, [Meyers96](#Meyers96) §11, [Sutter02](#Sutter02) §19 [Sutter05](#Sutter05) §51
+Destructors must always provide the no-fail guarantee. If a destructor calls a function that may throw, always wrap the call in a try/catch block that prevents the exception from escaping. In C++11, destructors are assumed to be noexcept by default, it's not necessary to use the `noexcept` keyword. [Meyers05](#Meyers05) §8, [Meyers96](#Meyers96) §11 [Meyers14](#Meyers14) §14, [Sutter02](#Sutter02) §19 [Sutter05](#Sutter05) §51
 
 If you write the destructor, you probably need to explicitly write or disable the copy constructor and copy assignment operator. [Sutter05](#Sutter05) §52
 
@@ -872,7 +932,7 @@ If you offer a member `swap()`, also offer a non-member `swap()` that calls the 
         int member2_;
     public:
         // Member swap (first swap bases, then members)
-        void swap(Derived& rhs) // noexcept
+        void swap(Derived& rhs) noexcept
         {
             using std::swap;
             Base::swap(rhs);              // Swap base class members (user-defined)
@@ -881,15 +941,15 @@ If you offer a member `swap()`, also offer a non-member `swap()` that calls the 
         }
     
         // Copy assignment operator utilizing swap (traditional)
-        T& operator=(const T& other)
+        Derived& operator=(const Derived& other)
         {
-            T temp(other);
+            Derived temp(other);
             swap(temp);
             return *this;
         }
     
         // Copy assignment operator utilizing swap (pass by value, more elegant in C++03 but ambiguous together with move assignment operator in C++11)
-        T& operator=(T temp)
+        Derived& operator=(Derived temp)
         {
             swap(temp);
             return *this;
@@ -900,8 +960,8 @@ If you offer a member `swap()`, also offer a non-member `swap()` that calls the 
     namespace std
     {
         template <>
-        void swap(T& t1, T& t2)
-        { t1.swap(t2); }
+        void swap(Derived& a, Derived& b) noexcept
+        { a.swap(b); }
     }
     
     // Template example
@@ -910,13 +970,13 @@ If you offer a member `swap()`, also offer a non-member `swap()` that calls the 
     {
         ...
         // Member swap template
-        void swap(C<T>& rhs)
+        void swap(C<T>& rhs) noexcept
         { ... }
     };
     
     // Non-member swap template calling the member swap
     template <typename T>
-    void swap(C<T>& a, C<T>& b)
+    void swap(C<T>& a, C<T>& b) noexcept
     { a.swap(b); }
 
 
@@ -1168,14 +1228,14 @@ When you write a placement version of operator new, be sure to write the corresp
 
 Nothrow new is of limited utility, because it applies only to memory allocation; associated constructor calls may still throw exceptions. [Meyers05](#Meyers05) §49
 
-    void* operator new(std::size_t, std::nothrow_t) throw(); // nothrow in C++11
+    void* operator new(std::size_t, std::nothrow_t) throw(); // noexcept in C++11
 
 
 #### operator delete
 
 Always implement together with `operator new`. [Sutter05](#Sutter05) §45
 
-Never allow operator delete to fail. [Sutter05](#Sutter05) §51
+Never allow operator delete to fail. In C++11, `operator delete` is assumed to be noexcept by default, it's not necessary to use the `noexcept` keyword. [Sutter05](#Sutter05) §51 [Meyers14](#Meyers14) §14
 
 operator delete should do nothing if passed a pointer that is null. Class-specific versions should handle blocks that are larger than expected. [Meyers05](#Meyers05) §51
 
@@ -1190,7 +1250,7 @@ Always implement all three forms. [Sutter05](#Sutter05) §46
 
 Always implement together with `operator new[]`. [Sutter05](#Sutter05) §45
 
-Never allow `operator delete[]` to fail. [Sutter05](#Sutter05) §51
+Never allow `operator delete[]` to fail. In C++11, `operator delete[]` is assumed to be noexcept by default, it's not necessary to use the `noexcept` keyword. [Sutter05](#Sutter05) §51 [Meyers14](#Meyers14) §14
 
 
 #### Implicit type conversion operators
@@ -1227,11 +1287,11 @@ APIs often require access to raw resources, so RAII classes should provide some 
         ~ResourceManager()
         { delete resource_; } // Release
     
+        Resource(const Resource&) = delete; // No implementation to disable copying (C++11)
+        Resource& operator=(const Resource&) = delete; // No implementation to disable copying (C++11)
+    
         Resource* get() const
         { return resource_; } // Access to raw resource
-    private:
-        Resource(const Resource&); // No implementation to disable copying
-        Resource& operator=(const Resource&); // No implementation to disable copying
     };
 
 
@@ -1344,19 +1404,19 @@ Now, to add a `log()` functionality to all derived classes, first add an `accept
     class Foo : public Base
     {
     public:
-        virtual void accept(Visitor& v) { v.visit(this); }
+        virtual void accept(Visitor& v) override { v.visit(this); }
     };
     
     class Bar : public Base
     {
     public:
-        virtual void accept(Visitor& v) { v.visit(this); }
+        virtual void accept(Visitor& v) override { v.visit(this); }
     };
     
     class Baz : public Base
     {
     public:
-        virtual void accept(Visitor& v) { v.visit(this); }
+        virtual void accept(Visitor& v) override { v.visit(this); }
     };
 
 Next, create a `Visitor` [Base class](#BaseClasses) with a pure virtual `visit()` method for each `Base` type:
@@ -1431,18 +1491,18 @@ Classes designed using the NVI pattern (Non-Virtual Interface) can be useful for
     class XMLReaderWriter : public Base
     {
     private:
-        virtual void read_from_impl (std::istream&) // Note: Not part of the client interface!
+        virtual void read_from_impl (std::istream&) override // Note: Not part of the client interface!
         { ... } // Read XML.
     
-        virtual void write_to_impl (std::ostream&) const // Note: Not part of the client interface!
+        virtual void write_to_impl (std::ostream&) const override // Note: Not part of the client interface!
         { ... } // Write XML.
     };
     
     class TextReaderWriter : public Base
     {
     private:
-        virtual void read_from_impl (std::istream&) { ... }
-        virtual void write_to_impl (std::ostream&) const { ... }
+        virtual void read_from_impl (std::istream&) override { ... }
+        virtual void write_to_impl (std::ostream&) const override { ... }
     };
 
 
@@ -1485,6 +1545,10 @@ References
 <a name="Meyers01"></a>
 [Meyers01]
 "Effective STL", ISBN 0-201-74962-5
+
+<a name="Meyers14"></a>
+[Meyers14]
+"Effective Modern C++", ISBN 978-1-491-90399-5
 
 <a name="Sutter99"></a>
 [Sutter99]
