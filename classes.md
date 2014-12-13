@@ -66,7 +66,7 @@ Inheritance in C++ comes in three flavors:
 
 1.  Public inheritance
 
-    Public inheritance, models the "is-a" (or better, "works-like-a") ...or "is-implemented-in-terms-of" relationship. Everything that applies to base classes must also apply to derived classes, because every derived class object is a base class object. [Meyers05](#Meyers05) §32
+    Public inheritance, models the "is-a", or "works-like-a" relationship. Everything that applies to base classes must also apply to derived classes, because every derived class object is a base class object. [Meyers05](#Meyers05) §32
 
     Names in derived classes hide names in base classes. Under public inheritance, this is never desirable. To make hidden names visible again, employ `using` declarations or forwarding functions. [Meyers05](#Meyers05) §33
 
@@ -230,17 +230,20 @@ Example: `std::vector`
     class ValueClass
     {
     public:
-        // Copy-constructor: Public and non-virtual
+        // Copy constructor: Public and non-virtual
         ValueClass(const ValueClass& rhs) {}
     
-        // Copy assignment operator: Public and non-virtual
+        // Copy assignment operator with value semantics: Public and non-virtual
         ValueClass& operator=(const ValueClass& rhs) {}
+    
+        // Move constructor (C++11): Public and non-virtual
+        ValueClass(ValueClass&& rhs) {}
+    
+        // Move assignment operator (C++11): Public and non-virtual
+        ValueClass& operator=(ValueClass&& rhs) {}
     
         // Destructor: Public and non-virtual [Meyers05] §7
         ~ValueClass() {}
-    
-        // Assignment operator with value semantics
-        ValueClass& operator=(const ValueClass& rhs) {}
     
         // No virtual functions!
     };
@@ -303,19 +306,43 @@ Base classes are the building blocks of class hierarchies. They establish interf
 
 **Implementation:**
 
-    class BaseClass
+    class BaseClassCpp98
     {
     public:
         // Destructor allowing polymorphic deletion
-        virtual ~BaseClass() {}
+        virtual ~BaseClassCpp98() {}
     
         // Non-virtual functions, defining interface
      private:
-        // Copy constructor not implemented to disable copying (C++98, in C++11 make public and deleted)
-        ValueClass(const ValueClass& rhs);
+        // Copy constructor not implemented to disable copying
+        BaseClassCpp98(const BaseClassCpp98&);
     
-        // Copy assignment operator not implemented to disable copying (C++98, in C++11 make public and deleted)
-        ValueClass& operator=(const ValueClass& rhs);
+        // Copy assignment operator not implemented to disable copying
+        BaseClassCpp98& operator=(const BaseClassCpp98&);
+    
+        // Virtual functions (protected if needed), defining implementation details
+    };
+    
+    class BaseClassCpp11
+    {
+    public:
+        // Destructor allowing polymorphic deletion
+        virtual ~BaseClass() = default;
+    
+        // Copy constructor
+        BaseClassCpp11(const BaseClassCpp11&) = default; // or delete to disable
+    
+        // Copy assignment operator
+        BaseClassCpp11& operator=(const BaseClassCpp11&) = default; // or delete to disable
+    
+        // Move constructor
+        BaseClassCpp11(BaseClassCpp11&&) = default; // or delete to disable
+    
+        // Move assignment operator
+        BaseClassCpp11& operator=(BaseClassCpp11&&) = default // or delete to disable
+       
+        // Non-virtual functions, defining interface
+     private:
     
         // Virtual functions (protected if needed), defining implementation details
     };
@@ -342,7 +369,7 @@ Abstract interfaces are classes made up entirly of (pure) virtual functions and 
     {
     public:
         // Public virtual destructor to allow polymorphic deletion. [Sutter02] §27
-        virtual ~Interface () = 0;
+        virtual ~Interface () = 0; // use delete in C++11
     
         // Only pure virtual interface functions.
         virtual SomeType interfaceFunction() = 0;
@@ -736,6 +763,12 @@ Declaring a function `noexcept` makes it hard to remove that promise later, with
 
 In C++11, the keyword `delete` is used to explicitly mark functions as deleted. This is primarily useful to disable compiler-generated constructors, but can also be used inside and outside classes to prevent functions to be called through implicit type conversions. [Meyers14](#Meyers14) §10
 
+
+### default
+
+In C++11, the keyword `default` is used to enable compiler-generated functions in cases where they would otherwise be deleted. This is often used to allow the default copy operations when providing user-defined move operations. For future compatibility it should also be used on classes declaring a destructor or only one of the copy operations to allow both copy operations. Also, it should be used on the copy and move operations in base classes to declare that movability is supported. [Meyers14](#Meyers14) §17
+
+
 **Example:**
 
     Class Uncopyable
@@ -778,11 +811,11 @@ Functions with special semantics
 Functions that tie in to built-in features of C++ require extra special care because they will be expected to work in certain ways. If implemented well, they will make classes much more powerful, but if implemented badly they have the potential to cause unexpected or undefined behavior.
 
 
-### The Big Four
+### Special member functions
 
-The Big Four functions require special treatment because they will be implemented by the compiler if you do not provide an implementation of your own. Therefore, they should not be implemented if the default compiler implementation is correct, but this choice should always be documented to assure users of your class that you know this is the case and didn't just forget or was unaware of that fact. [Meyers05](#Meyers05) §5
+The special member functions (four in C++98, six in C++11) require special treatment because they will be implemented by the compiler if you do not provide an implementation of your own. Therefore, they should not be implemented if the default compiler implementation is correct, but this choice should always be documented to assure users of your class that you know this is the case and didn't just forget or was unaware of that fact. In C++11, the keyword `default` is used to this end. [Meyers05](#Meyers05) §5 [Meyers14](#Meyers14) §17
 
-In C++98, explicitly disallow the use of compiler-generated functions you do not want, by declaring them private and providing no implementation. In C++11, declare the functions public and deleted. [Meyers05](#Meyers05) §6, [Meyers14](#Meyers14) §11
+In C++98, explicitly disallow the use of compiler-generated functions you do not want, by declaring them private and providing no implementation. In C++11, declare the functions public and deleted. [Meyers05](#Meyers05) §6, [Meyers14](#Meyers14) §11 §17
 
 
 #### Constructor
@@ -793,7 +826,7 @@ For an [Exception class](#ExceptionClasses):
 For a [RAII class](#RAII):
 - Allocate the resource in it (or do setup for lazy allocation later).
 
-The default constructor is the one that takes no arguments. If possible, one should be defined by the class (must be done explicitly if other constructors are defined) because otherwise the class will not be usable in arrays and STL containers, and in virtual base classes the lack of one means all derived classes must explicitly define all the base class's arguments. [Meyers96](#Meyers96) §4
+The default constructor is the one that takes no arguments. If possible, one should be defined by the class (must be done explicitly if other constructors are defined) because otherwise the class will not be usable in arrays and STL containers, and in virtual base classes the lack of one means that all derived classes must explicitly define all the base class's arguments. [Meyers96](#Meyers96) §4
 
 If the constructor can take exactly one argument (default values may allow this for multi-argument constructors), use the `explicit` keyword to prevent implicit type conversion (almost always unwanted). [Meyers96](#Meyers96) §5, [Sutter05](#Sutter05) §40
 
@@ -820,9 +853,6 @@ For a [Value class](#ValueClasses):
 - Make public.
 - Make non-virtual.
 
-For a [RAII class](#RAII):
-- Release the resource in it.
-
 For a [Base class](#BaseClasses):
 - Implementation depends on if clients should be able to delete polymorphically using a pointer to the base class or not. [Meyers05](#Meyers05) §7, [Sutter02](#Sutter02) §27, [Sutter05](#Sutter05) §50
     - Make public for polymorphic deletion, private (protected) otherwise.
@@ -830,11 +860,16 @@ For a [Base class](#BaseClasses):
 - If a class has any virtual functions, it should have a virtual destructor. [Meyers05](#Meyers05) §7
 - Thinking in the future tense, it's usually best to prefer allowing polymorphic deletion, even if it is not currently required. [Meyers96](#Meyers96) §32
 
+For a [RAII class](#RAII):
+- Release the resource in it if still allocated.
+
 Destructors need to release resources allocated by the class in order to prevent leaks. [Meyers96](#Meyers96) §10
 
 Destructors must always provide the no-fail guarantee. If a destructor calls a function that may throw, always wrap the call in a try/catch block that prevents the exception from escaping. In C++11, destructors are assumed to be noexcept by default, it's not necessary to use the `noexcept` keyword. [Meyers05](#Meyers05) §8, [Meyers96](#Meyers96) §11 [Meyers14](#Meyers14) §14, [Sutter02](#Sutter02) §19 [Sutter05](#Sutter05) §51
 
 If you write the destructor, you probably need to explicitly write or disable the copy constructor and copy assignment operator. [Sutter05](#Sutter05) §52
+
+In C++11, if you write the destructor and want to support default copy operations, declare them using `default` to make the class future-proof, as automatic generation of them has been deprecated. [Meyers14](#Meyers14) §17
 
 Always avoid calling virtual functions in destructors. [Sutter05](#Sutter05) §49
 
@@ -855,6 +890,10 @@ If you write/disable the copy constructor, also do the same for the copy assignm
 Copy constructors and copy assignment operators should not implement copying in terms of one of the other. Instead, put common functionality in a third function that both call. [Meyers05](#Meyers05) §12
 
 If you write the copy constructor, and allocate or duplicate some resource in it, you should also write a destructor that releases it. [Sutter05](#Sutter05) §52
+
+In C++11, default generation of the copy constructor if a user-declared copy assignment operator or destructor is provided has been deprecated, so declare one (using either `default` or custom implementation) to make it future-proof. [Meyers14](#Meyers14) §17
+
+In C++11, the copy constructor is deleted if the class declares a move constructor or move assignment operator, and must be user-declared to enable copy construction. [Meyers14](#Meyers14) §17
 
 Copy construction needs to be correct (and should be cheap) for Value classes in order to make them usable in standard containers. [Meyers01](#Meyers01) §3
 
@@ -900,9 +939,37 @@ If you write/disable the copy assignment operator, also do the same for the copy
 
 If you write the copy assignment operator, and allocate or duplicate some resource in it, you should also write a destructor that releases it. [Sutter05](#Sutter05) §52
 
+In C++11, default generation of the copy assignment operator if a user-declared copy constructor or destructor is provided has been deprecated, so declare one (using either `default` or custom implementation) to make it future-proof. [Meyers14](#Meyers14) §17
+
+In C++11, the copy assignment operator is deleted if the class declares a move constructor or move assignment operator, and must be user-declared to enable copy assignment. [Meyers14](#Meyers14) §17
+
 The canonical form for copy assignment implementation is to provide a no-fail `swap()` function and implement copy assignment by creating a temporary, swapping and then returning (see *swap*). [Sutter02](#Sutter02) §22
 
 Never write a copy assignment operator that relies on a check for self-assignment in order to work properly; a copy assignment operator that uses the create-a-temporary-and-swap idiom is automatically both strongly exception-safe and safe for self-assignment. It's all right to use a self-assignment check as an optimization to avoid needless work. [Sutter99](#Sutter99) §38
+
+
+#### Move constructor
+
+For a [Base class](#BaseClasses):
+- Declare `default` to enable default move construction, and do the same with the copy operations to enable default copying. [Meyers14](#Meyers14) §17
+
+For a [RAII class](#RAII):
+- Assign members from the source object and then assign default values to the source object's members to prevent its destructor from freeing resources multiple times.
+
+In C++11, the default move constructor performs member-wise moving of non-static data members. It is generated only if the class contains no user-declared copy operations, move operations, or destructor. Declaring one deletes the default copy operations.
+
+
+#### Move assignment operator
+
+For a [Base class](#BaseClasses):
+- Declare `default` to enable default move copy assignment, and do the same with the copy operations to enable default copying. [Meyers14](#Meyers14) §17
+
+For a [RAII class](#RAII):
+- Check for self-assignment.
+- When there is no self-assignment, free any resources from the object itself and then implement moving the same as in the move constructor.
+- Return *this.
+
+In C++11, the default move assignment operator performs member-wise moving of non-static data members. It is generated only if the class contains no user-declared copy operations, move operations, or destructor. Declaring one deletes the default copy operations.
 
 
 ### swap
@@ -941,9 +1008,9 @@ If you offer a member `swap()`, also offer a non-member `swap()` that calls the 
         }
     
         // Copy assignment operator utilizing swap (traditional)
-        Derived& operator=(const Derived& other)
+        Derived& operator=(const Derived& rhs)
         {
-            Derived temp(other);
+            Derived temp(rhs);
             swap(temp);
             return *this;
         }
@@ -1270,29 +1337,69 @@ C++ idioms
 Any class that allocates a resource that must be released after use (heap memory, file handle, thread, socket etc.) should be implemented using the RAII Idiom (Resource Acquisition Is Initialization):
 - Perform allocation/acquisition in the constructor (or lazily at the first method call that needs it). [Meyers96](#Meyers96) §17
 - Perform deallocation/release in the destructor.
-- Either provide a copy constructor and copy assignment operator with valid resource copying semantics or disable both (by making them private and non-implemented). [Meyers05](#Meyers05) §13 §14, [Sutter05](#Sutter05) §13
+- Either provide a copy constructor and copy assignment operator with valid resource copying semantics or disable both. [Meyers05](#Meyers05) §13 §14, [Sutter05](#Sutter05) §13
 
 APIs often require access to raw resources, so RAII classes should provide some means of access to the raw resources they manage. [Meyers05](#Meyers05) §15
 
 **Example implementation**:
 
-    class ResourceManager
+    class Resource
     {
     private:
-        Resource* resource_; // The managed resource
+        RawResource* resource_; // The managed resource
     public:
-        ResourceManger()
-        { resource_ = new Resource(); } // Acquisition
+        Resource()
+        { resource_ = new RawResource(); } // Acquisition
     
-        ~ResourceManager()
-        { delete resource_; } // Release
+        ~Resource()
+        {
+            if (resource_) {
+                delete resource_; // Release
+            }
+        }
     
-        Resource(const Resource&) = delete; // No implementation to disable copying (C++11)
-        Resource& operator=(const Resource&) = delete; // No implementation to disable copying (C++11)
+        Resource(const Resource& rhs)
+        { ... } // Steps necessary for copying a RawResource object
     
-        Resource* get() const
+        Resource& operator=(const Resource& rhs)
+        {
+            Resource temp(rhs);
+            swap(temp);
+            return *this;
+        }
+    
+        Resource(Resource&& rhs)
+        {
+            resource_ = rhs.resource_;
+            rhs.resource_ = nullptr;
+        }
+    
+        Resource& operator=(Resource&& rhs)
+        {
+            if (this != &rhs) {
+                delete resource_;
+                resource_ = rhs.resource_;
+                rhs.resource_ = nullptr;
+            }
+            return *this;
+        }
+    
+        void swap(Resource& rhs) noexcept
+        {
+            using std::swap;
+            swap(resource_, rhs.resource_);
+        }
+    
+        RawResource* get() const
         { return resource_; } // Access to raw resource
     };
+    
+    namespace std
+    {
+        template <>
+        void swap(Resource& a, Resource& b) noexcept
+        { a.swap(b); }
+    }
 
 
 <a name="Pimpl"></a>
