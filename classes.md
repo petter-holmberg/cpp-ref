@@ -93,11 +93,11 @@ To add more functionality to a concrete class, define free (non-member) function
 Never inherit publicly only because it allows you to reuse common code in the base class! Instead, inherit because it allows the derived class to be reused by code that uses objects of the base class polymorphically.
 Before object orientation, it has always been easy for new code to call existing code. Public inheritance specifically makes it easier for existing code to seamlessly and safely call new code. (So do templates, which provide static polymorphism that can blend well with dynamic polymorphism.) [Sutter99](#Sutter99) §22 [Sutter05](#Sutter05) §37
 
+When two similar concrete classes duplicate code, don't make one class the base class of the other. Instead, define a new abstract base class and make the two old classes inherit publicly from that. [Meyers96](#Meyers96) §33
+
 Both classes and templates support interfaces and polymorphism. Templates can be an alternative to implementing public inheritance (static polymorphism instead of dynamic). [Meyers05](#Meyers05) §41, [Sutter05](#Sutter05) §37
 - For classes, interfaces are explicit and centered on function signatures. Polymorphism occurs at runtime through virtual functions.
 - For template parameters, interfaces are implicit and based on valid expressions. Polymorphism occurs during compilation through template instantiation and function overloading resolution.
-
-When two similar concrete classes duplicate code, don't make one class the base class of the other. Instead, define a new abstract base class and make the two old classes inherit publicly from that. [Meyers96](#Meyers96) §33
 
 Never redefine an inherited non-virtual function. [Meyers05](#Meyers05) §36
 
@@ -129,7 +129,7 @@ When overriding a virtual base class function: [Sutter05](#Sutter05) §38
 - When overriding, never change the value of default arguments. [Meyers05](#Meyers05) §37
 - If the base class has multiple functions with the same name but different signatures, overriding just one hides all the others in the derived class. To bring them back into scope in the derived class, add a `using BaseClass::functionName` declaration in the derived class.
 
-Try to avoid multiple inheritance of more than one class that is not an [Abstract interfaces](#AbstractInterfaces). [Meyers05](#Meyers05) §40, [Sutter02](#Sutter02) §24, [Sutter05](#Sutter05) §36
+Try to avoid multiple inheritance of more than one class that is not an [Abstract interface](#AbstractInterfaces). [Meyers05](#Meyers05) §40, [Sutter02](#Sutter02) §24, [Sutter05](#Sutter05) §36
 - Multiple inheritance is more complex than single inheritance. It can lead to new ambiguity issues and to the need for virtual inheritance.
 - Virtual inheritance imposes costs in size, speed, and complexity of initialization and assignment. It's most practical when virtual base classes have no data.
 - Multiple inheritance does have legitimate uses. One scenario involves combining public inheritance from an Abstract interface class with private inheritance from a class that helps with implementation. [Stroustrup13](#Stroustrup13) §21.3
@@ -163,7 +163,7 @@ Use the following algorithm for determining whether a function should be a membe
 
 Always define a non-member function in the same namespace as its related class to make the association explicit. [Stroustrup13](#Stroustrup13) §16.3.2, [Sutter05](#Sutter05) §57
 
-If you need type conversions on all parameters to a function (including the one that would otherwise be pointed to by the this pointer), the function must be a non-member. [Meyers05](#Meyers05) §24
+If you need type conversions on all parameters to a function (including the one that would otherwise be pointed to by the `this` pointer), the function must be a non-member. [Meyers05](#Meyers05) §24
 
 
 ### Exception guarantees
@@ -181,12 +181,14 @@ Observe the canonical exception-safety rules: [Sutter99](#Sutter99) §8-18
 3. In each function, take all the code that might emit an exception and do all that work safely off to the side. Only then, when you know that the real work has succeeded, should you modify the program state (and clean up) using only non-throwing operations.
 
 
+<a name="NoFailGuarantee"></a>
 #### No-fail Guarantee
 
 The No-fail Guarantee is the strongest: The function simply cannot fail. The caller doesn't need to check for any errors.
 A prerequisite for any destructor, deallocation function or `swap()` function. 
 
 
+<a name="StrongGuarantee"></a>
 #### Strong Guarantee
 
 The Strong Guarantee is to ensure that failure leaves the program in the (visible) state it was before the call, (unwinding back to that state if necessary) so that nothing has changed in case of failure.
@@ -195,6 +197,7 @@ The immediate caller should check for failures (if it can handle them correctly 
 The Strong Guarantee can often be implemented via copy-and-swap, but the Strong Guarantee is not practical for all functions. [Meyers05](#Meyers05) §29
 
 
+<a name="BasicGuarantee"></a>
 #### Basic Guarantee
 
 The Basic Guarantee is to ensure that the function either totally succeeds and reaches the intended target state, or it fails and leaves the program in state that is valid (but not predictable).
@@ -225,7 +228,7 @@ Value classes are intended to be used as concrete classes, not as base classes. 
 
 Example: `std::vector`
 
-**Implementation:**
+**Example implementation:**
 
     class ValueClass
     {
@@ -264,7 +267,7 @@ They hold a collection of values, and don't pretend to encapsulate or provide an
 
 Example: `std::pair`
 
-**Implementation:**
+**Example implementation:**
 
     struct Aggregate
     {
@@ -288,7 +291,7 @@ POD-structs (Plain Old Data) are a special case of [Aggregates](#Aggregates) tha
 - No user-defined destructor.
 
 
-**Implementation:**
+**Example implementation:**
 
     struct PodStruct
     {
@@ -302,9 +305,9 @@ POD-structs are typically compatible with C-style `struct`s.
 <a name="BaseClasses"></a>
 ### Base classes
 
-Base classes are the building blocks of class hierarchies. They establish interfaces through virtual functions. They are usually instantiated dynamically on the heap as part of a concrete derived class object, and used via a (smart) pointer. They should be used to represent concepts with inherent hierarchical structure. [Stroustrup13](#Stroustrup13) §3.2.4
+Base classes are the building blocks of class hierarchies. They establish interfaces through virtual functions. They are usually instantiated dynamically on the free store or heap as part of a concrete derived class object, and used via a (smart) pointer. They should be used to represent concepts with inherent hierarchical structure. [Stroustrup13](#Stroustrup13) §3.2.4
 
-**Implementation:**
+**Example implementations:**
 
     class BaseClassCpp98
     {
@@ -369,7 +372,7 @@ Abstract interfaces are classes made up entirly of (pure) virtual functions and 
     {
     public:
         // Public virtual destructor to allow polymorphic deletion. [Sutter02] §27
-        virtual ~Interface () = 0; // use delete in C++11
+        virtual ~Interface () = 0;
     
         // Only pure virtual interface functions.
         virtual SomeType interfaceFunction() = 0;
@@ -433,6 +436,8 @@ The C++ standard doesn't guarantee that stateful predicates will work with stand
 
 Functors that are made adaptable can be used in many more contexts than functors that are not. Making them adaptable simply means to define some of the typedefs `argument_type`, `first_argument_type`, `second_argument_type`, and `result_type`. The conventional way to do so is to inherit from `std::unary_function` or `std::binary_function`, depending on if the functor takes one or two arguments. These base structs are templates, taking either two or three types. The last one is the return type of `operator()`, the first one(s) are its argument type(s).
 When the input parameters are `const` and not pointers, it is conventional to strip off const qualifiers for these types, while for pointers the `const` should be kept. Adaptable functors do not define more than one `operator()` function. [Meyers01](#Meyers01) §40
+
+In C++11, lambda expressions can be used to define most functors with a much terser and more convenient syntax.
 
 **Example implementations:**
 
@@ -502,7 +507,7 @@ Exceptions should be thrown by value and be caught by (const) reference. If re-t
         // Destructor
         ~ExceptionClass() throw() {};
     
-        // Virtual functions, often implements Cloning and the [Visitor Pattern] [Sutter05] §54
+        // Virtual functions, often implements Cloning and the Visitor Pattern [Sutter05] §54
     }
 
 
@@ -740,7 +745,7 @@ It is common to use friend functions for operator overloading, where an overload
 
 ### operator
 
-`operator` is not a standalone keyword, but prefix to a function name defining an overloaded operator (e.g. `Foo operator+(Foo &other);`. This name is nothing more than a glorified function name, and the function may in fact be called using it normally, but also allows it to be used with a corresponding C++ operator's syntax (see *Operators*).
+`operator` is not a standalone keyword, but prefix to a function name defining an overloaded operator (e.g. `Foo operator+(Foo &other);`. This name is nothing more than a glorified function name, and the function may in fact be called using it normally, but also allows it to be used with a corresponding C++ operator's syntax (see [Operators](#Operators)).
 
 
 ### throw
@@ -754,9 +759,7 @@ C++11 has deprecated the `throw` keyword. The `noexcept` keyword was added to su
 
 ### noexcept
 
-In C++11, the `noexcept`  keyword declares that the function (sometimes conditionally) will not throw exceptions. `noexcept` functions are more optimizable than non-`noexcept` functions and clearly communicates intent to clients. `noexcept` is particularly valuable for the move operations, `swap()`, memory deallocation functions, and destructors. [Meyers14](#Meyers14) §14
-
-Declaring a function `noexcept` makes it hard to remove that promise later, without breaking client code. Use it only when willing to commit to a `noexcept` implementation over the long term.
+In C++11, the `noexcept`  keyword declares that the function (sometimes conditionally) will not throw exceptions. `noexcept` functions are more optimizable than non-`noexcept` functions and clearly communicates intent to clients. `noexcept` is particularly valuable for the move operations, `swap()`, memory deallocation functions, and destructors. Declaring a function `noexcept` makes it hard to remove that promise later, without breaking client code. Use it only when willing to commit to a `noexcept` implementation over the long term. [Meyers14](#Meyers14) §14
 
 
 ### delete
@@ -799,7 +802,7 @@ In C++11, class member functions may be declared with reference qualifiers. This
     }
     
     Widget w;
-    w.doWork()M // calls & version
+    w.doWork(); // calls & version
     
     Widget makeWidget();
     makeWidget().doWork(); // calls && version
@@ -838,14 +841,14 @@ Always avoid calling virtual functions in constructors. [Sutter05](#Sutter05) §
 
 Prevent possible resource leaks in constructors by catching all possible exceptions during allocation and releasing previously allocated resources. The destructor will not be called if the constructor fails. [Meyers96](#Meyers96) §10 [Sutter02](#Sutter02) §18
 
-Constructor function try blocks (i.e. try/catch around the initialization list + body) are useful to translate exceptions thrown by any sub-object constructor into a different exception, but they must (re)throw something. They are not useful for any other type of function. [Sutter02](#Sutter02) §18
+Constructor function try blocks (i.e. `try`/`catch` around the initialization list + body) are useful to translate exceptions thrown by any sub-object constructor into a different exception, but they must (re)throw something. They are not useful for any other type of function. [Sutter02](#Sutter02) §18
 
 If the class legally can have "optional" members that may throw during construction but should not prevent class construction, use the [Pimpl Idiom](#Pimpl) to group such individual members. [Sutter02](#Sutter02) §18
 
 Making the constructor(s) private prevents object instantiation. A function made `friend` of the class, or defined `static` in the class, will be allowed to access the private constructor and can therefore be useful as a means to control object instantiation, by holding static instances inside it. [Meyers96](#Meyers96) §26
 
 In C++11, a constructor that takes a single argument of type `std::initializer_list` is called an initializer-list constructor. It is used to construct objects using a `{}`-list as its initializer value. If a class is a container, give it an initializer-list constructor.
-During constructor overload resolution, braced intializers (C++11) are matched to `std::intializer_list` parameters if at all possible, even if other constructors offer seemingly better matches. An example of where the choice can make a significant difference is creating a `std::vector<numeric type>` with two arguments. [Stroustrup13](#Stroustrup13) §17.3.4, [Meyers14](#Meyers14) §7
+During constructor overload resolution, braced intializers are matched to `std::intializer_list` parameters if at all possible, even if other constructors offer seemingly better matches. An example of where the choice can make a significant difference is creating a `std::vector<numeric type>` with two arguments. [Stroustrup13](#Stroustrup13) §17.3.4, [Meyers14](#Meyers14) §7
 
 
 #### Destructor
@@ -866,7 +869,7 @@ For a [RAII class](#RAII):
 
 Destructors need to release resources allocated by the class in order to prevent leaks. [Meyers96](#Meyers96) §10
 
-Destructors must always provide the no-fail guarantee. If a destructor calls a function that may throw, always wrap the call in a try/catch block that prevents the exception from escaping. In C++11, destructors are assumed to be noexcept by default, it's not necessary to use the `noexcept` keyword. [Stroustrup13](#Stroustrup13) §13.2 [Meyers05](#Meyers05) §8, [Meyers96](#Meyers96) §11 [Meyers14](#Meyers14) §14, [Sutter02](#Sutter02) §19 [Sutter05](#Sutter05) §51
+Destructors must always provide the [No-fail Guarantee](#NoFailGuarantee). If a destructor calls a function that may throw, always wrap the call in a try/catch block that prevents the exception from escaping. In C++11, destructors are assumed to be noexcept by default, it's not necessary to use the `noexcept` keyword. [Stroustrup13](#Stroustrup13) §13.2 [Meyers05](#Meyers05) §8, [Meyers96](#Meyers96) §11 [Meyers14](#Meyers14) §14, [Sutter02](#Sutter02) §19 [Sutter05](#Sutter05) §51
 
 If you write the destructor, you probably need to explicitly write or disable the copy constructor and copy assignment operator. [Sutter05](#Sutter05) §52
 
@@ -898,7 +901,7 @@ In C++11, default generation of the copy constructor if a user-declared copy ass
 
 In C++11, the copy constructor is deleted if the class declares a move constructor or move assignment operator, and must be user-declared to enable copy construction. [Meyers14](#Meyers14) §17
 
-Copy construction needs to be correct (and should be cheap) for Value classes in order to make them usable in standard containers. [Meyers01](#Meyers01) §3
+Copy construction needs to be correct (and should be cheap) for [Value classes](#ValueClasses) in order to make them usable in standard containers. [Meyers01](#Meyers01) §3
 
 Abstract base classes can define the copy constructor `explicit` to allow slicing but prevent it from being done by accident. [Sutter05](#Sutter05) §54
 
@@ -948,7 +951,7 @@ In C++11, default generation of the copy assignment operator if a user-declared 
 
 In C++11, the copy assignment operator is deleted if the class declares a move constructor or move assignment operator, and must be user-declared to enable copy assignment. [Meyers14](#Meyers14) §17
 
-The canonical form for copy assignment implementation is to provide a no-fail `swap()` function and implement copy assignment by creating a temporary, swapping and then returning (see *swap*). [Sutter02](#Sutter02) §22
+The canonical form for copy assignment implementation is to provide a No-fail `swap()` function and implement copy assignment by creating a temporary, swapping and then returning (see [swap](#swap)). [Sutter02](#Sutter02) §22
 
 Never write a copy assignment operator that relies on a check for self-assignment in order to work properly; a copy assignment operator that uses the create-a-temporary-and-swap idiom is automatically both strongly exception-safe and safe for self-assignment. It's all right to use a self-assignment check as an optimization to avoid needless work. [Sutter99](#Sutter99) §38
 
@@ -976,13 +979,14 @@ For a [Base class](#BaseClasses):
 For a [RAII class](#RAII):
 - Check for self-assignment.
 - When there is no self-assignment, free any resources from the object itself and then implement moving the same as in the move constructor.
-- Return *this.
+- Return `*this`.
 
 In C++11, the default move assignment operator performs member-wise moving of non-static data members. It is generated only if the class contains no user-declared copy operations, move operations, or destructor. Declaring one deletes the default copy operations.
 
 If the type implementation is unknown, assume that move assignment is not present, not cheap, and not used. [Meyers14](#Meyers14) §29
 
 
+<a name="swap"></a>
 ### swap
 
 The `std::swap()` function is typically implemented like this, utilizing the class's copy constructor and copy assignment operator:
@@ -997,7 +1001,7 @@ The `std::swap()` function is typically implemented like this, utilizing the cla
       }
     }
 
-For classes where this implementation is inefficient (for example classes consisting primarily of pointers to other types containing the real data), provide a no-fail `swap()` function to efficiently and infallibly swap the contents of this object with another's. It has many potential uses (primarily in [Value classes](#ValueClasses)), e.g. to implement assignment easily while maintaining the strong exception guarantee for objects composed of other objects that provide the Strong Guarantee. [Meyers05](#Meyers05) §25, [Sutter99](#Sutter99) §12 [Sutter02](#Sutter02) §22 [Sutter05](#Sutter05) §56
+For classes where this implementation is inefficient (for example classes consisting primarily of pointers to other types containing the real data), provide a No-fail `swap()` function to efficiently and infallibly swap the contents of this object with another's. It has many potential uses (primarily in [Value classes](#ValueClasses)), e.g. to implement assignment easily while maintaining the strong exception guarantee for objects composed of other objects that provide the [Strong Guarantee](#StrongGuarantee). [Meyers05](#Meyers05) §25, [Sutter99](#Sutter99) §12 [Sutter02](#Sutter02) §22 [Sutter05](#Sutter05) §56
 
 If you offer a member `swap()`, also offer a non-member `swap()` that calls the member. For classes (not templates), specialize `std::swap()` too. When calling `swap()`, employ a `using` declaration for `std::swap()`, then call `swap()` without namespace qualification. It's fine to totally specialize `std` templates for user-defined types, but never try to add something completely new to `std`. [Meyers05](#Meyers05) §25
 
@@ -1075,7 +1079,7 @@ The binary operators `=` (assignment), `[]` (array subscription), `->`` (member 
 
 #### operator=
 
-When implementing the assignment operator, make it non-virtual and with a specific signature, returning a reference to *this: [Meyers05](#Meyers05) §10, [Sutter05](#Sutter05) §55
+When implementing the assignment operator, make it non-virtual and with a specific signature, returning a reference to `*this`: [Meyers05](#Meyers05) §10, [Sutter05](#Sutter05) §55
 - Classic version: `T& operator=(const T&);`
 - Optimizer-friendly: `T& operator=(T);`
 
@@ -1234,7 +1238,7 @@ When a user-defined class overloads the function call operator, `operator()`, it
 The index operator `operator[]` is often used to provide array-like access syntax for user-defined classes. STL implements `operator[]` in the `std::string` and `std::map` classes. `std::string` simply returns a character reference as a result of `operator[]` whereas `std::map` returns a reference to the value given its key. In both cases, the returned reference can be directly read or written to.
 The `std::string` and `std::map` classes have no knowledge or has no control over whether the reference is used for reading or for modification. Sometimes, however, it is useful to detect how the value is being used. In this case, `operator[]` is often implemented to distinguish reads from writes by returning a proxy object. [Meyers96](#Meyers96) §30
 
-User-defined classes that provide array-like access that allows both reading and writing typically define two overloads for `operator[]`: const and non-const variants:
+User-defined classes that provide array-like access that allows both reading and writing typically define two overloads for `operator[]`; const and non-const variants:
 
     struct T {
         value_t& operator[](std::size_t idx)
