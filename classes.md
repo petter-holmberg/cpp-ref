@@ -88,7 +88,7 @@ Use private inheritance instead of composition only when absolutely necessary, w
 Never use public inheritance except to model true Liskow IS-A and WORKS-LIKE-A. All overridden member functions must require no more and promise no less. [Sutter99](#Sutter99) §22
 
 Never inherit from a class that was not designed to be a base class.
-To add more functionality to a concrete class, define free (nonmember) functions to do the job instead, and put them in the same namespace as the class they are designed to extend. [Sutter05](#Sutter05) §35
+To add more functionality to a concrete class, define free (non-member) functions to do the job instead, and put them in the same namespace as the class they are designed to extend. [Sutter05](#Sutter05) §35
 
 Never inherit publicly only because it allows you to reuse common code in the base class! Instead, inherit because it allows the derived class to be reused by code that uses objects of the base class polymorphically.
 Before object orientation, it has always been easy for new code to call existing code. Public inheritance specifically makes it easier for existing code to seamlessly and safely call new code. (So do templates, which provide static polymorphism that can blend well with dynamic polymorphism.) [Sutter99](#Sutter99) §22 [Sutter05](#Sutter05) §37
@@ -101,7 +101,7 @@ When two similar concrete classes duplicate code, don't make one class the base 
 
 Never redefine an inherited non-virtual function. [Meyers05](#Meyers05) §36
 
-Differentiate between inheritance of interface and inheritance of implementation: [Meyers05](#Meyers05) §34
+Differentiate between inheritance of interface and inheritance of implementation: [Stroustrup13](#Stroustrup13) §3.2.4, [Meyers05](#Meyers05) §34
 - Inheritance of interface is different from inheritance of implementation. Under public inheritance, derived classes inherit base class interfaces.
 - Pure virtual functions specify inheritance of interface only.
 - Simple (impure) virtual functions specify inheritance of interface plus inheritance of a default implementation.
@@ -132,12 +132,12 @@ When overriding a virtual base class function: [Sutter05](#Sutter05) §38
 Try to avoid multiple inheritance of more than one class that is not an [Abstract interfaces](#AbstractInterfaces). [Meyers05](#Meyers05) §40, [Sutter02](#Sutter02) §24, [Sutter05](#Sutter05) §36
 - Multiple inheritance is more complex than single inheritance. It can lead to new ambiguity issues and to the need for virtual inheritance.
 - Virtual inheritance imposes costs in size, speed, and complexity of initialization and assignment. It's most practical when virtual base classes have no data.
-- Multiple inheritance does have legitimate uses. One scenario involves combining public inheritance from an Interface class with private inheritance from a class that helps with implementation.
+- Multiple inheritance does have legitimate uses. One scenario involves combining public inheritance from an Abstract interface class with private inheritance from a class that helps with implementation. [Stroustrup13](#Stroustrup13) §21.3
 
 
 ### Non-member, non-friend functions
 
-Non-member, non-friend functions improve encapsulation by minimizing dependencies. Whenever possible, prefer making functions non-member non-friends. [Meyers05](#Meyers05) §23
+Non-member, non-friend functions improve encapsulation by minimizing dependencies. Whenever possible, prefer making functions non-member non-friends. [Stroustrup13](#Stroustrup13) §16.3.2, [Meyers05](#Meyers05) §23
 
 The standard requires that operators `=` `()`  `->` `[]` and must be members, and class-specific operators `new`, `new[]`, `delete`, and `delete[]` must be static members.
 Use the following algorithm for determining whether a function should be a member and/or friend [Sutter05](#Sutter05) §44, [Sutter99](#Sutter99) §20:
@@ -151,17 +151,17 @@ Use the following algorithm for determining whether a function should be a membe
         b) The function needs type conversions on its leftmost argument.
         c) The function can be implemented using the class's public interface alone:
     
-        Make it a nonmember (and friend if needed in cases a) and b) ).
+        Make it a non-member (and friend if needed in cases a) and b) ).
     
         If it needs to behave virtually:
     
-            Add a virtual member function to provide the virtual behavior, and implement the nonmember in terms of that.
+            Add a virtual member function to provide the virtual behavior, and implement the non-member in terms of that.
     
     Else:
     
         Make it a member.
 
-Always define a non-member function in the same namespace as its related class. [Sutter05](#Sutter05) §57
+Always define a non-member function in the same namespace as its related class to make the association explicit. [Stroustrup13](#Stroustrup13) §16.3.2, [Sutter05](#Sutter05) §57
 
 If you need type conversions on all parameters to a function (including the one that would otherwise be pointed to by the this pointer), the function must be a non-member. [Meyers05](#Meyers05) §24
 
@@ -221,7 +221,7 @@ A class shold neatly fall into one of these categories. If it doesn't it is prob
 <a name="ValueClasses"></a>
 ### Value classes
 
-Value classes are intended to be used as concrete classes, not as base classes. They should be modeled after built-in types and usually be instantiated on the stack or as directly held members of other classes. [Sutter05](#Sutter05) §32
+Value classes are intended to be used as concrete classes, not as base classes. They should be modeled after built-in types and usually be instantiated on the stack or as directly held members of other classes. When applicable, prefer value classes over more complicated classes and over plain data structures. [Stroustrup13](#Stroustrup13) §3.2.1 §6.3, [Sutter05](#Sutter05) §32
 
 Example: `std::vector`
 
@@ -282,7 +282,7 @@ Aggregates can be instantiated with curly braces:
 
 #### POD-structs
 
-POD-structs (Plain Old Data) are a special case of [Aggregates](#Aggregates) that also have:
+POD-structs (Plain Old Data) are a special case of [Aggregates](#Aggregates) that also have [Stroustrup13](#Stroustrup13) §8.2.6:
 - No non-static data members that are non-POD-structs, non-POD-unions (or arrays of such types) and no reference members.
 - No user-defined assignment operator.
 - No user-defined destructor.
@@ -302,7 +302,7 @@ POD-structs are typically compatible with C-style `struct`s.
 <a name="BaseClasses"></a>
 ### Base classes
 
-Base classes are the building blocks of class hierarchies. They establish interfaces through virtual functions. They are usually instantiated dynamically on the heap as part of a concrete derived class object, and used via a (smart) pointer.
+Base classes are the building blocks of class hierarchies. They establish interfaces through virtual functions. They are usually instantiated dynamically on the heap as part of a concrete derived class object, and used via a (smart) pointer. They should be used to represent concepts with inherent hierarchical structure. [Stroustrup13](#Stroustrup13) §3.2.4
 
 **Implementation:**
 
@@ -632,13 +632,13 @@ Before C++11 unions have always been restricted to hold POD types.
 
 These keywords may refer to class member access levels, or the form of inheritance used.
 
-- `public` data members are part of the class's interface and can be accessed by anyone.
-- `protected` data members are part of the class's interface only to classes that inherit from it.
-- `private` data members are accessible only to the class itself.
+- `public` members are part of the class's interface and can be accessed by anyone.
+- `protected` members are part of the class's interface only to classes that inherit from it.
+- `private` members are accessible only to the class itself.
 
 `protected` is no more encapsulated than public! (see `using`). [Meyers05](#Meyers05) §22
 
-Declare data members private. It gives clients syntactically uniform access to data, affords fine-grained access control, allows invariants to be enforced, and offers class authors implementation flexibility. [Meyers05](#Meyers05) §22
+Declare data members `private`. It gives clients syntactically uniform access to data, affords fine-grained access control, allows invariants to be enforced, and offers class authors implementation flexibility. Don't declare data members `protected`. [Stroustrup13](#Stroustrup13) §20.5, [Meyers05](#Meyers05) §22
 
 
 ### const
@@ -661,12 +661,12 @@ The constructor of a base class will not be called when inherited virtually, ins
 
 ### override
 
-In C++11, the identifier `override` is used to explicitly declare that a virtual function in a derived class overrides a base class implementation. This is useful because there are many subtle ways to accidentally not override a base class function. With `override` the compiler will catch these errors. [Meyers14](#Meyers14) §10.
+In C++11, the identifier `override` is used to explicitly declare that a virtual function in a derived class overrides a base class implementation. This is useful (especially in large class hierarchies) because there are many subtle ways to accidentally not override a base class function. With `override` the compiler will catch these errors. [Stroustrup13](#Stroustrup13) §20.3.4.1, [Meyers14](#Meyers14) §10.
 
 
 ### final
 
-In C++11, the identifier `final` is used to explicitly declare that a virtual function cannot be overridden in derived classes. `final` may also be applied to a class, in which case the class is prohibited from being used as a base class.
+In C++11, the identifier `final` is used to explicitly declare that a function cannot be overridden in derived classes. `final` may also be applied to a class, in which case the class is prohibited from being used as a base class. Use `final` only sparingly, when it reflects a semantic need. [Stroustrup13](#Stroustrup13) §20.3.4.2
 
 
 ### explicit
@@ -828,7 +828,7 @@ For a [RAII class](#RAII):
 
 The default constructor is the one that takes no arguments. If possible, one should be defined by the class (must be done explicitly if other constructors are defined) because otherwise the class will not be usable in arrays and STL containers, and in virtual base classes the lack of one means that all derived classes must explicitly define all the base class's arguments. [Meyers96](#Meyers96) §4
 
-If the constructor can take exactly one argument (default values may allow this for multi-argument constructors), use the `explicit` keyword to prevent implicit type conversion (almost always unwanted). [Meyers96](#Meyers96) §5, [Sutter05](#Sutter05) §40
+If the constructor can take exactly one argument (default values may allow this for multi-argument constructors), use the `explicit` keyword to prevent implicit type conversion (almost always unwanted). [Stroustrup13](#Stroustrup13) §16.2.6, [Meyers96](#Meyers96) §5, [Sutter05](#Sutter05) §40
 
 Initialize using the initialization list rather than in the constructor body, except if you perform unmanaged resource acquisition (such as `new` expressions not immediately passed to a smart pointer). [Meyers05](#Meyers05) §4, [Sutter02](#Sutter02) §18 [Sutter05](#Sutter05) §9 §48
 
@@ -844,7 +844,8 @@ If the class legally can have "optional" members that may throw during construct
 
 Making the constructor(s) private prevents object instantiation. A function made `friend` of the class, or defined `static` in the class, will be allowed to access the private constructor and can therefore be useful as a means to control object instantiation, by holding static instances inside it. [Meyers96](#Meyers96) §26
 
-During constructor overload resolution, braced intializers (C++11) are matched to std::intializer_list parameters if at all possible, even if other constructors offer seemingly better matches. An example of where the choice can make a significant difference is creating a `std::vector<numeric type>` with two arguments. [Meyers14](#Meyers14) §7
+In C++11, a constructor that takes a single argument of type `std::initializer_list` is called an initializer-list constructor. It is used to construct objects using a `{}`-list as its initializer value. If a class is a container, give it an initializer-list constructor.
+During constructor overload resolution, braced intializers (C++11) are matched to `std::intializer_list` parameters if at all possible, even if other constructors offer seemingly better matches. An example of where the choice can make a significant difference is creating a `std::vector<numeric type>` with two arguments. [Stroustrup13](#Stroustrup13) §17.3.4, [Meyers14](#Meyers14) §7
 
 
 #### Destructor
@@ -857,7 +858,7 @@ For a [Base class](#BaseClasses):
 - Implementation depends on if clients should be able to delete polymorphically using a pointer to the base class or not. [Meyers05](#Meyers05) §7, [Sutter02](#Sutter02) §27, [Sutter05](#Sutter05) §50
     - Make public for polymorphic deletion, private (protected) otherwise.
     - Make virtual for polymorphic deletion, non-virtual otherwise.
-- If a class has any virtual functions, it should have a virtual destructor. [Meyers05](#Meyers05) §7
+- If a class has any virtual functions, it should have a virtual destructor. [Stroustrup13](#Stroustrup13) §20.4, [Meyers05](#Meyers05) §7
 - Thinking in the future tense, it's usually best to prefer allowing polymorphic deletion, even if it is not currently required. [Meyers96](#Meyers96) §32
 
 For a [RAII class](#RAII):
@@ -865,7 +866,7 @@ For a [RAII class](#RAII):
 
 Destructors need to release resources allocated by the class in order to prevent leaks. [Meyers96](#Meyers96) §10
 
-Destructors must always provide the no-fail guarantee. If a destructor calls a function that may throw, always wrap the call in a try/catch block that prevents the exception from escaping. In C++11, destructors are assumed to be noexcept by default, it's not necessary to use the `noexcept` keyword. [Meyers05](#Meyers05) §8, [Meyers96](#Meyers96) §11 [Meyers14](#Meyers14) §14, [Sutter02](#Sutter02) §19 [Sutter05](#Sutter05) §51
+Destructors must always provide the no-fail guarantee. If a destructor calls a function that may throw, always wrap the call in a try/catch block that prevents the exception from escaping. In C++11, destructors are assumed to be noexcept by default, it's not necessary to use the `noexcept` keyword. [Stroustrup13](#Stroustrup13) §13.2 [Meyers05](#Meyers05) §8, [Meyers96](#Meyers96) §11 [Meyers14](#Meyers14) §14, [Sutter02](#Sutter02) §19 [Sutter05](#Sutter05) §51
 
 If you write the destructor, you probably need to explicitly write or disable the copy constructor and copy assignment operator. [Sutter05](#Sutter05) §52
 
@@ -889,6 +890,8 @@ If you write/disable the copy constructor, also do the same for the copy assignm
 
 Copy constructors and copy assignment operators should not implement copying in terms of one of the other. Instead, put common functionality in a third function that both call. [Meyers05](#Meyers05) §12
 
+When writing a copy constructor, be careful to copy every element that needs to be copied (beware of default initializers). Copy operations should provide equivalence and independence. [Stroustrup13](#Stroustrup13) §17.5.1
+
 If you write the copy constructor, and allocate or duplicate some resource in it, you should also write a destructor that releases it. [Sutter05](#Sutter05) §52
 
 In C++11, default generation of the copy constructor if a user-declared copy assignment operator or destructor is provided has been deprecated, so declare one (using either `default` or custom implementation) to make it future-proof. [Meyers14](#Meyers14) §17
@@ -900,6 +903,8 @@ Copy construction needs to be correct (and should be cheap) for Value classes in
 Abstract base classes can define the copy constructor `explicit` to allow slicing but prevent it from being done by accident. [Sutter05](#Sutter05) §54
 
 Abstract base classes can also define a pure virtual `clone()` function (otherwise known as a virtual copy constructor), returning a pointer to a (deep) copy of the object. This can be used by the normal copy constructor to avoid slicing. [Meyers96](#Meyers96) §25, [Sutter05](#Sutter05) §54
+
+If a class has a reference member, it probably needs a copy constructor. [Stroustrup13](#Stroustrup13) §17.4.1.1
 
 **Example:**
 
@@ -947,6 +952,8 @@ The canonical form for copy assignment implementation is to provide a no-fail `s
 
 Never write a copy assignment operator that relies on a check for self-assignment in order to work properly; a copy assignment operator that uses the create-a-temporary-and-swap idiom is automatically both strongly exception-safe and safe for self-assignment. It's all right to use a self-assignment check as an optimization to avoid needless work. [Sutter99](#Sutter99) §38
 
+If a class has a reference member, it probably needs a copy assignment operator. [Stroustrup13](#Stroustrup13) §17.4.1.1
+
 
 #### Move constructor
 
@@ -957,6 +964,8 @@ For a [RAII class](#RAII):
 - Assign members from the source object and then assign default values to the source object's members to prevent its destructor from freeing resources multiple times.
 
 In C++11, the default move constructor performs member-wise moving of non-static data members. It is generated only if the class contains no user-declared copy operations, move operations, or destructor. Declaring one deletes the default copy operations.
+
+If the type implementation is unknown, assume that move construction is not present, not cheap, and not used. [Meyers14](#Meyers14) §29
 
 
 #### Move assignment operator
@@ -970,6 +979,8 @@ For a [RAII class](#RAII):
 - Return *this.
 
 In C++11, the default move assignment operator performs member-wise moving of non-static data members. It is generated only if the class contains no user-declared copy operations, move operations, or destructor. Declaring one deletes the default copy operations.
+
+If the type implementation is unknown, assume that move assignment is not present, not cheap, and not used. [Meyers14](#Meyers14) §29
 
 
 ### swap
@@ -1334,7 +1345,7 @@ C++ idioms
 <a name="RAII"></a>
 #### RAII
 
-Any class that allocates a resource that must be released after use (heap memory, file handle, thread, socket etc.) should be implemented using the RAII Idiom (Resource Acquisition Is Initialization):
+Any class that allocates a resource that must be released after use (heap memory, file handle, thread, socket etc.) should be implemented using the RAII Idiom (Resource Acquisition Is Initialization): [Stroustrup13](#Stroustrup13) §3.2.1.2
 - Perform allocation/acquisition in the constructor (or lazily at the first method call that needs it). [Meyers96](#Meyers96) §17
 - Perform deallocation/release in the destructor.
 - Either provide a copy constructor and copy assignment operator with valid resource copying semantics or disable both. [Meyers05](#Meyers05) §13 §14, [Sutter05](#Sutter05) §13
@@ -1405,9 +1416,11 @@ APIs often require access to raw resources, so RAII classes should provide some 
 <a name="Pimpl"></a>
 ### Pimpl
 
-When it makes sense to completely hide internal implementation, the Pimpl (Pointer to implementation) idiom should be used. It minimizes compiler dependencies, separates interface from implementation and adds portability. The downside is that it adds complexity. [Sutter05](#Sutter05) §43
+When it makes sense to completely hide internal implementation, the Pimpl (Pointer to implementation) idiom should be used. It minimizes compiler dependencies, separates interface from implementation and adds portability. The downside is that it adds complexity. [Sutter05](#Sutter05) §43 [Meyers14](#Meyers14) §21
 
 Pimpl is useful to suppress class member constructor exceptions when the class' own constructor should never be allowed to throw. [Sutter02](#Sutter02) §18
+
+In C++11, for `unique_ptr` Pimpl pointers, declare special member functions in the class header, but implement them in the implementation file. Do this even if the default function implementations are acceptable. This does not apply for `shared_ptr`. [Meyers14](#Meyers14) §22
 
 **Example implementation:**
 
@@ -1486,7 +1499,7 @@ This is achieved by creating classes inheriting from a base class template, spec
 <a name="Visitor"></a>
 ### Visitor Pattern
 
-The Visitor Pattern allows adding functionality to a set of classes without "polluting" them with a lot of extra responsibilities, and without having to perform type checking to call the right function for every type. The code for a specific functionality will also be localized to one place.
+The Visitor Pattern allows adding functionality to a set of classes without "polluting" them with a lot of extra responsibilities, and without having to perform type checking to call the right function for every type. The code for a specific functionality will also be localized to one place. [Stroustrup13](#Stroustrup13) §22.3.2
 
 **Example implementation:**
 
@@ -1640,6 +1653,10 @@ In order to ensure object identity, empty classes in C++ don't take 0 bytes of m
 
 References
 ----------
+
+<a name="Stroustrup13"></a>
+[Stroustrup13]
+"The C++ Programming Language, 4th Edition", ISBN 978-0-321-56384-2
 
 <a name="Meyers05"></a>
 [Meyers05]

@@ -4,7 +4,7 @@ C++ STL quick reference
 This document is a collection of design guidelines when using the C++ Standard Template Library.
 For brevity and simplicity of use, it does not discuss at length the *whys* of the guidelines, but instead presents references to further reading about the subject.
 
-The guidelines are currently focused on C++98 use but features some notes about later versions.
+The guidelines cover C++98, C++11 and C++14, with notes on differences between the versions.
 
 
 STL overview
@@ -42,7 +42,7 @@ Containers should never contain base classes, as this causes slicing (only the b
 To implement containers holding different types, make containers of base class pointers, or preferably of smart pointers (but never `auto_ptr`!)
 Containers of `new`:ed pointers are prone to leak memory. The best way to avoid this problem is to use smart pointers. [Meyers01](#Meyers01) §3 §7 §8
 
-`vector` is usually the right container to use by default when it is not obvious that another one should be used, it offers a lot of useful properties that other containers don't provide. [Sutter05](#Sutter05) §76
+`vector` is usually the right container to use by default when it is not obvious that another one should be used, it offers a lot of useful properties that other containers don't provide. [Stroustrup13](#Stroustrup13) §4.4.1, [Sutter05](#Sutter05) §76
 
 A [Sequence container](#SequenceContainers) is the right option when element position matters, especially for insertion. Otherwise, an [Associative container](#AssociativeContainer) is a viable option. [Meyers01](#Meyers01) §1.
 
@@ -495,6 +495,40 @@ Erasing in a container of pointers can easily lead to resource leaks. One soluti
 To perform custom summarizing of elements in some range, use `accumulate()` together with a stateless binary functor returning objects of the type the container holds, or `for_each()` together with a unary functor storing the sum and a function to retrieve the final result afterwards. [Meyers01](#Meyers01) §37
 
 
+Smart pointers
+--------------
+
+C++11 offers a set of standard smart pointers, which simplify memory management. These are preferable to raw pointers in many contexts because they simplify client code.
+
+
+### unique_ptr
+
+`unique_ptr` is a small, fast, move-only smart pointer for managing resources wtih exclusive ownership semantics. By default it uses `delete` for destruction, but custom deleters can be specified. Stateful deleters and function pointers increase the size of `unique_ptr` objects. [Meyers14](#Meyers14) §18
+
+`unique_ptr` should generally be the first choice of smart pointer type. Converting a `unique_ptr` to a `shared_ptr` is easy. [Meyers14](#Meyers14) §18
+
+Prefer `make_unique` to `new` when creating `unique_ptr` objects, whenever possible. [Meyers14](#Meyers14) §21
+
+
+### shared_ptr
+
+`shared_ptr` offers convenience approaching that of garbage collection for the shared lifetime management of arbitrary resources. `shared_ptr` objects are typically twice as big as `unique_ptr` objects, incur overhead for control blocks, and require atomic reference count manipulations. By default it uses `delete` for destruction, but custom deleters can be specified. The type of the deleter has no effect on the type of `shared_ptr` objects. [Meyers14](#Meyers14) §19
+
+Avoid creating `shared_ptr` objects directly from variables of raw pointer type (including `this` within classes), as having more than one `shared_ptr` from a single raw pointer leads to undefined behavior. Instead, use `make_shared` (if custom deleters are not needed). Alternatively, pass the result of `new` directly to the `shared_ptr` constructor. [Meyers14](#Meyers14) §19
+
+Prefer `make_shared` or `allocate_shared` to `new` when creating `shared_ptr` objects, whenever possible. Exceptions include classes with custom memory management and systems with memory concerns, very large objects and `weak_ptr`s that outlive the corresponding `shared_ptr`s. [Meyers14](#Meyers14) §21
+
+
+### weak_ptr
+
+`weak_ptr` acts like a `shared_ptr` but allows pointing to an object that no longer exists. It can be used to construct `shared_ptr` objects, and can be useful for the implementation of caches, observer lists, and the prevention of `shared_ptr` cycles. [Meyers14](#Meyers14) §20
+
+
+### auto_ptr
+
+`auto_ptr` is a deprecated smart pointer type in C++11 (`unique_ptr` is a better alternative) and is best avoided.
+
+
 Error messages
 --------------
 
@@ -530,6 +564,10 @@ Nonstandard functors and adapters: `select1st()`, `select2nd()` (very useful for
 References
 ----------
 
+<a name="Stroustrup13"></a>
+[Stroustrup13]
+"The C++ Programming Language, 4th Edition", ISBN 978-0-321-56384-2
+
 <a name="Meyers96"></a>
 [Meyers96]
 "More Effective C++", ISBN 0-201-63371-X
@@ -537,6 +575,10 @@ References
 <a name="Meyers01"></a>
 [Meyers01]
 "Effective STL", ISBN 0-201-74962-5
+
+<a name="Meyers14"></a>
+[Meyers14]
+"Effective Modern C++", ISBN 978-1-491-90399-5
 
 <a name="Sutter99"></a>
 [Sutter99]
