@@ -30,10 +30,14 @@ The STL containers can be subdivided into two categories:
 
 1.  [Sequence containers](#SequenceContainers):
     Containers oriented towards sequential access of objects.
-    The standard sequence containers are `vector`, `string`, `deque` and `list`.
+    The standard sequence containers are `vector`, `string`, `deque`, `list`, and (in C++11) `forward_list`.
 2.  [Associative containers](#AssociativeContainers):
     Containers oriented towards random access of objects.
-    The standard associative containers are `set`, `multiset`, `map` and `multimap`.
+    The standard associative containers are `set`, `multiset`, `map`, `multimap`, and (in C++11), `unordered_set`, `unordered_multiset`, `unordered_map` and `unordered_multimap`.
+
+Additionally, in C++11 there are [Container adaptors](#ContainerAdaptors) providing specialized interfaces to other containers: `priority_queue`, `queue` and `stack`.
+
+Other types that provide much of what is required by standard containers include `array`, `bitset` and `valarray`.
 
 Code should never be written with the goal to generalize the use of a specific container, so that it can be replaced without touching any code that uses it.
 Instead, find the container that best matches the required use cases, and use typedefs to clarify syntax and make container replacement easier in the event that it needs to be done. [Meyers01](#Meyers01) §2
@@ -42,7 +46,7 @@ Containers should never contain base classes, as this causes slicing (only the b
 To implement containers holding different types, make containers of base class pointers, or preferably of smart pointers (but never `auto_ptr`!)
 Containers of `new`:ed pointers are prone to leak memory. The best way to avoid this problem is to use smart pointers. [Meyers01](#Meyers01) §3 §7 §8
 
-`vector` is usually the right container to use by default when it is not obvious that another one should be used, it offers a lot of useful properties that other containers don't provide. [Stroustrup13](#Stroustrup13) §4.4.1, [Sutter05](#Sutter05) §76
+`vector` is usually the right container to use by default when it is not obvious that another one should be used, it offers a lot of useful properties that other containers don't provide. [Stroustrup13](#Stroustrup13) §4.4.1 §31.2 §31.4, [Sutter05](#Sutter05) §76
 
 A [Sequence container](#SequenceContainers) is the right option when element position matters, especially for insertion. Otherwise, an [Associative container](#AssociativeContainer) is a viable option. [Meyers01](#Meyers01) §1.
 
@@ -56,7 +60,7 @@ It is also useful to categorize containers in terms of memory layout: [Meyers01]
 2.  *Node-based containers:*
     Containers that store individual elements per chunk of memory.
     These containers are very efficient at insertion and deletion, but can be inefficient when it comes to access.
-    The node-based containers are `list` and all [Associative containers](#AssociativeContainers).
+    The node-based containers are `list`, `forward_list` and all [Associative containers](#AssociativeContainers).
 
 If it is important to avoid movement of existing container elements when inserting or erasing elements, A *Node-based container* is the only option. [Meyers01](#Meyers01) §1
 
@@ -81,7 +85,7 @@ To do this, insert and erase in a copy of the container, then use `swap()` to sw
 <a name="SequenceContainers"></a>
 ### Sequence containers
 
-The standard sequence containers are `vector`, `string`, `deque` and `list`.
+The standard sequence containers are `vector`, `string`, `deque`, `list`, and `forward_list`.
 
 
 #### vector
@@ -93,6 +97,8 @@ The standard sequence containers are `vector`, `string`, `deque` and `list`.
     void cApiFunction(const int* ints, size_t numInts);
     if (!v.empty()) // &v[0] undefined if vector is empty
         cApiFunction(&v[0], v.size());
+
+A `vector` only deals with properly initialized objects. This is not a requirement on `array` and built-in arrays. [Stroustrup13](#Stroustrup13) §31.4.1.3
 
 Never use `vector<bool>` as a container, instead use `deque<bool>` or a non-STL alternative like `bitset<bool>`. [Meyers01](#Meyers01) §18 [Sutter02](#Sutter02) §6
 
@@ -116,12 +122,24 @@ While `vector` should be the default sequence container of choice, `deque` shoul
 It offers constant-time `insert()` and `erase()` operations at both ends, uses memory in an operating system-friendly way (large `deque`s can be split in multiple blocks of memory of a suitable size), is somewhat easier to use and inherently more efficient for growth. [Sutter02](#Sutter02) §7
 
 
+#### list
+
+A `list` is implemented as a doubly-linked list and allows inserting and deleting elements without moving existing elements.
+
+A `list` usually has a four-word-per-element memory overhead, and traversal of elements is significantly slower than in a `vector`. [Stroustrup13](#Stroustrup13) §31.4.2
+
+
+#### forward_list
+
+A `forward_list` is implemented as a singly-linked list and is ideal for empty and very short sequences that are typically traversed from the beginning. [Stroustrup13](#Stroustrup13) §31.4.2
+
+
 <a name="AssociativeContainers"></a>
 ### Associative containers
 
-The standard associative containers are `set`, `multiset`, `map` and `multimap`. They all store their elements sorted, typically using some kind of balanced binary tree.
+The standard associative containers are `set`, `multiset`, `map`, `multimap`, and (in C++11), `unordered_set`, `unordered_multiset`, `unordered_map` and `unordered_multimap`. The ordered versions store their elements sorted, typically using some kind of balanced binary tree, and the unordered versions use hash tables with linked overflow. [Stroustrup13](#Stroustrup13) §31.4.3
 
-Hash table based versions (which store objects unsorted and can provide amortized constant-time complexity instead of logarithmic) are not part of STL (prior to C++11) but there are several libraries that provide them. [Meyers01](#Meyers01) §25
+The hash table based versions (which store objects unsorted and can provide amortized constant-time complexity instead of logarithmic) were not part of STL prior to C++11, but there are several libraries that provide them. [Meyers01](#Meyers01) §25
 
 Once a key has been inserted into an associative container, that key must never change its relative position in the container. [Sutter02](#Sutter02) §8
 
@@ -180,6 +198,26 @@ Avoid in-place key modifications in `multiset`s (see `set`).
 #### map
 
 Using `operator[]` is the most efficient method for updating existing elements in a `map`, while using `insert()` is more efficient for adding new elements. [Meyers01](#Meyers01) §24
+
+
+<a name="ContainerAdaptors"></a>
+### Container adaptors
+
+The STL container adaptors provide a different interface to an underlying container. They do not offer direct access to it and don't offers iterators or subscripting. [Stroustrup13](#Stroustrup13) §31.5
+
+
+#### stack
+
+The `stack` adaptor eliminates the non-stack operations on its container from the interface. [Stroustrup13](#Stroustrup13) §31.5.1
+
+
+#### queue
+
+The `queue` adaptor is an interface to a container that allows the insertion of elements at the `back()` and the extraction of elements at the `front()`. [Stroustrup13](#Stroustrup13) §31.5.2
+
+#### priority_queue
+
+The `priority_queue` adaptor is a queue in which each element is given a priority that controls the order in which the elements get to the `top()`. [Stroustrup13](#Stroustrup13)[Stroustrup13](#Stroustrup13) §31.5.3
 
 
 Container functions
@@ -418,7 +456,7 @@ There are many sorting algorithms offered by STL, and they solve different probl
 
 `partition()` reorders elements in a range so that all elements satisfying a particular criterion are at the beginning of the range.
 
-The [Associative containers](#AssociativeContainers) cannot be sorted (they already are).
+The ordered [Associative containers](#AssociativeContainers) cannot be sorted (they already are).
 
 `partition()` and `stable_partition()` require only bidirectional iterators, so they can be used on all [Sequence container](#SequenceContainers) types.
 
