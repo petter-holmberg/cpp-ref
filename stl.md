@@ -43,8 +43,7 @@ Code should never be written with the goal to generalize the use of a specific c
 Instead, find the container that best matches the required use cases, and use typedefs to clarify syntax and make container replacement easier in the event that it needs to be done. [Meyers01](#Meyers01) §2
 
 Containers should never contain base classes, as this causes slicing (only the base part of derived classes being inserted) which is almost always an error.
-To implement containers holding different types, make containers of base class pointers, or preferably of smart pointers (but never `auto_ptr`!)
-Containers of `new`:ed pointers are prone to leak memory. The best way to avoid this problem is to use smart pointers. [Meyers01](#Meyers01) §3 §7 §8
+To implement containers holding different types, make containers of base class pointers. Containers of `new`:ed raw pointers are prone to leak memory. The best way to avoid this problem is to use smart pointers (but never `auto_ptr`!) [Meyers01](#Meyers01) §3 §7 §8
 
 `vector` is usually the right container to use by default when it is not obvious that another one should be used, it offers a lot of useful properties that other containers don't provide. [Stroustrup13](#Stroustrup13) §4.4.1 §31.2 §31.4, [Sutter05](#Sutter05) §76
 
@@ -268,9 +267,10 @@ It can also be used to both clear a container and to reduce its capacity to the 
 
 The range-based functions takes two iterators, defining a range into a container. They should be preferred to their single-element counterparts because they are easier to write, express their intent more clearly, and exhibit better performance. [Meyers01](#Meyers01) §5
 
-All containers offer a *Range-based constructor* and *Range-based erase()*. All [Sequence containers](#SequenceContainers) offer a *Range-based insert()* and *Range-based assign()*.
+All containers offer a [Range-based constructor](#RangeBasedConstructor) and [Range-based erase()](#RangeBasedErase). All [Sequence containers](#SequenceContainers) offer a [Range-based insert()](#RangeBasedInsert) and [Range-based assign()](#RangeBasedAssign).
 
 
+<a name="RangeBasedConstructor"></a>
 #### Range-based constructor
 
     container::container(InputIterator begin, inputIterator end);
@@ -289,6 +289,7 @@ When using iterator-based constructors, it is best to not use anonymous iterator
     list<int> data(dataBegin, dataEnd);
 
 
+<a name="RangeBasedInsert"></a>
 #### Range-based insert()
 
     // For Sequence containers
@@ -304,6 +305,7 @@ When using iterator-based constructors, it is best to not use anonymous iterator
 Loops using `push_front()` or `push_back()`, and `copy()` being passed `front_inserter` or `back_inserter` should typically be replaced with range-based insertion. [Meyers01](#Meyers01) §5
 
 
+<a name="RangeBasedErase"></a>
 #### Range-based erase()
 
     // For Sequence containers
@@ -315,6 +317,7 @@ Loops using `push_front()` or `push_back()`, and `copy()` being passed `front_in
 See [Erasing](#Erasing) about how to use range-based `erase()`.
 
 
+<a name="RangeBasedRemove"></a>
 #### Range-based remove()
 
 Only provided for [Sequence containers](#SequenceContainers).
@@ -322,6 +325,7 @@ Only provided for [Sequence containers](#SequenceContainers).
 See [Erasing](#Erasing) about how to use range-based `remove()`.
 
 
+<a name="RangeBasedAssign"></a>
 #### Range-based assign()
 
     void container::assign(InputIterator begin, InputIterator end);
@@ -366,9 +370,9 @@ To convert from the const variants of a container's iterators into the non-const
     Container::iterator i(c.begin());
     advance(i, distance<Container::const_iterator>(i, ci));
 
-To emulate insertion at a position specified by a `reverse_iterator ri`, insert at the position `ri.base()`. [Meyers01](#Meyers01) §28
+To emulate insertion at a position specified by a `reverse_iterator` `ri`, insert at the position `ri.base()`. [Meyers01](#Meyers01) §28
 
-To erase at a position a position specified by a `reverse_iterator ri`, erase at the element preceding `ri.base()`: [Meyers01](#Meyers01) §28
+To erase at a position a position specified by a `reverse_iterator` `ri`, erase at the element preceding `ri.base()`: [Meyers01](#Meyers01) §28
 
     container.erase((++ri).base());
 
@@ -466,12 +470,12 @@ The ordered [Associative containers](#AssociativeContainers) cannot be sorted (t
 `partition()` and `stable_partition()` require only bidirectional iterators, so they can be used on all [Sequence container](#SequenceContainers) types.
 
 The sorting algorithms, in order of performance (best to worst) are:
-1. `partition()`
-2. `stable_partition()`
-3. `nth_element()`
-4. `partial_sort()`
-5. `sort()`
-6. `stable_sort()`
+- `partition()`
+- `stable_partition()`
+- `nth_element()`
+- `partial_sort()`
+- `sort()`
+- `stable_sort()`
 
 Many algorithms require containers to be sorted: [Meyers01](#Meyers01) §34
 - `binary_search()`
@@ -529,7 +533,7 @@ To do something in addition to erasing with each element (like logging), for [As
 Despite its name, `remove()` doesn't actually remove elements from containers. It just moves elements that are not to be removed up to the front of the container, overwriting as it goes, and returning the iterator to the new logical end of the range.
 Feeding this into the range-based version of `erase()` will erase what's left at the end of the container. The same goes for `remove_if()` and `unique()`. For lists, the `.unique()` member function does full erasing, just like `.remove()`. [Meyers01](#Meyers01) §32 [Sutter02](#Sutter02) §2
 
-Erasing in a container of pointers can easily lead to resource leaks. One solution is to iterate over the container, deleting and setting pointers to null, then using the erase-remove idiom to eliminate the null pointers in the container (assuming no null pointers should be kept). [Meyers01](#Meyers01) §32
+Erasing in a container of pointers can easily lead to resource leaks. One solution is to iterate over the container, deleting and setting pointers to null, then using the "erase-remove idiom" to eliminate the null pointers in the container (assuming no null pointers should be kept). [Meyers01](#Meyers01) §32
 
 
 <a name="Summarizing"></a>
@@ -595,9 +599,9 @@ If you're using a common STL component like `vector`, `string`, or the `for_each
 Nonstandard components
 ----------------------
 
-Hashed associative containers: `hash_set`, `hash_multiset`, `hash_map`, and `hash_multimap`
+In C++98, hashed associative containers: `hash_set`, `hash_multiset`, `hash_map`, and `hash_multimap`.
 
-Singly linked list: `slist`
+In C++98, singly linked lists: `slist`
 
 Container for very large strings: `rope`
 
