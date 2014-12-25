@@ -434,16 +434,15 @@ Functors that are predicates (i.e. return `bool` or something that can be implic
 Defining `operator()` `const` is necessary for predicates, but internally they must also avoid accessing mutable data members, non-const local static objects, non-const objects at namespace scope and non-const global objects. 
 The C++ standard doesn't guarantee that stateful predicates will work with standard algorithms! [Meyers01](#Meyers01) §39 [Sutter02](#Sutter02) §3
 
-Functors that are made adaptable can be used in many more contexts than functors that are not. Making them adaptable simply means to define some of the typedefs `argument_type`, `first_argument_type`, `second_argument_type`, and `result_type`. The conventional way to do so is to inherit from `std::unary_function` or `std::binary_function`, depending on if the functor takes one or two arguments. These base structs are templates, taking either two or three types. The last one is the return type of `operator()`, the first one(s) are its argument type(s).
-When the input parameters are `const` and not pointers, it is conventional to strip off const qualifiers for these types, while for pointers the `const` should be kept. Adaptable functors do not define more than one `operator()` function. [Meyers01](#Meyers01) §40
-
-In C++11, lambda expressions can be used to define most functors with a much terser and more convenient syntax.
+Functors that are made adaptable can be used in many more contexts than functors that are not. Making them adaptable simply means to define some of the typedefs `argument_type`, `first_argument_type`, `second_argument_type`, and `result_type`. The conventional way to do so in C++98 is to inherit from `std::unary_function` or `std::binary_function`, depending on if the functor takes one or two arguments. These base structs are templates, taking either two or three types. The last one is the return type of `operator()`, the first one(s) are its argument type(s).
+When the input parameters are `const` and not pointers, it is conventional to strip off const qualifiers for these types, while for pointers the `const` should be kept. Adaptable functors do not define more than one `operator()` function.
+In C++11, `std::unary_function` and `std::binary_function` have been deprecated. Instead, adaptable function objects can be created from functors using the `std::function` template, and lambda expressions can be used to define most functors with a much terser and more convenient syntax. [Stroustrup13](#Stroustrup13) §11.4 §44.2.3, [Meyers01](#Meyers01) §40
 
 **Example implementations:**
 
     // Lightweight predicate functor
     template <typename T>
-    class Predicate : public unary_function<T, bool>
+    class Predicate : public std::unary_function<T, bool>
     {
     public:
         bool operator()(const T& value) const
@@ -452,7 +451,7 @@ In C++11, lambda expressions can be used to define most functors with a much ter
     
     // Heavy polymorphic functor implemented using [Pimpl]
     template <typename T>
-    class Functor : public unary_function<T, void>
+    class Functor : public std::unary_function<T, void>
     {
     public:
         void operator()(const T& value) const
@@ -463,7 +462,7 @@ In C++11, lambda expressions can be used to define most functors with a much ter
     
     // The implementation class, holding state
     template <typename T>
-    class FunctorImpl : public unary_function<T, void>
+    class FunctorImpl : public std::unary_function<T, void>
     {
     private:
         // Some heavy state
@@ -1219,6 +1218,8 @@ The streaming operators, `operator<<` and `operator>>` are always implemented as
             is.setstate(std::ios::failbit);
         return is;
     }
+
+Define streaming operators for user-defined types with values that have meaningful textual representations. [Stroustrup13](#Stroustrup13) §38.1 §38.4.1 §38.4.2
 
 
 #### operator()

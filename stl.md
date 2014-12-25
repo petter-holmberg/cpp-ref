@@ -100,7 +100,7 @@ The standard sequence containers are `vector`, `string`, `deque`, `list`, and `f
 
 A `vector` only deals with properly initialized objects. This is not a requirement on `array` and built-in arrays. [Stroustrup13](#Stroustrup13) §31.4.1.3
 
-Never use `vector<bool>` as a container, instead use `deque<bool>` or a non-STL alternative like `bitset<bool>`. [Meyers01](#Meyers01) §18 [Sutter02](#Sutter02) §6
+Never use `vector<bool>` as a container, instead use `deque<bool>` or `bitset<bool>`. [Stroustrup13](#Stroustrup13) §34.2.3, [Meyers01](#Meyers01) §18 [Sutter02](#Sutter02) §6
 
 
 #### string
@@ -114,6 +114,8 @@ Many `string` implementations use reference counting. If this is a problem, a `v
 Using `swap()` on `string`s invalidates iterators, pointers and references to them. [Meyers01](#Meyers01) §1
 
 Using `c_str()` is the only safe and correct way to pass `string`s to a C API that expects a char array. [Meyers01](#Meyers01) §16
+
+Directly or indirectly, use `substr()` to read substrings and `replace()` to write substrings. [Stroustrup13](#Stroustrup13) §36.3.8
 
 
 #### deque
@@ -217,7 +219,7 @@ The `queue` adaptor is an interface to a container that allows the insertion of 
 
 #### priority_queue
 
-The `priority_queue` adaptor is a queue in which each element is given a priority that controls the order in which the elements get to the `top()`. [Stroustrup13](#Stroustrup13)[Stroustrup13](#Stroustrup13) §31.5.3
+The `priority_queue` adaptor is a queue in which each element is given a priority that controls the order in which the elements get to the `top()`. [Stroustrup13](#Stroustrup13) §31.5.3
 
 
 Container functions
@@ -350,7 +352,10 @@ Iterators can be classified into five categories depending on the functionality 
 All STL [Containers](#Containers) offer four types of iterators:  `iterator`, `const_iterator`, `reverse_iterator` and `const_reverse_iterator`.
 
 An `iterator` can be implicitly converted into a `const_iterator` or a `reverse_iterator`, and a `reverse_iterator` into a `const_reverse_iterator`.
-The `.base()` function of the reverse variants return their corresponding forward variant.
+The `.base()` function of the reverse variants return their corresponding forward variant. [Stroustrup13](#Stroustrup13) §33.2.1
+
+`iterator_traits` can be used to obtain information about an iterator, such as the underlying value type, even if the iterator is of a simple pointer type. It can be used to find an optimal algorithm based on an iterator's category. [Stroustrup13](#Stroustrup13) §33.1.3
+
 For container insertion or erasure, typically prefer using the normal iterator even when other options are available. [Meyers01](#Meyers01) §26
 
 To convert from the const variants of a container's iterators into the non-const variants, use `distance()` and `advance()`: [Meyers01](#Meyers01) §27
@@ -541,16 +546,16 @@ C++11 offers a set of standard smart pointers, which simplify memory management.
 
 ### unique_ptr
 
-`unique_ptr` is a small, fast, move-only smart pointer for managing resources wtih exclusive ownership semantics. By default it uses `delete` for destruction, but custom deleters can be specified. Stateful deleters and function pointers increase the size of `unique_ptr` objects. [Meyers14](#Meyers14) §18
+`unique_ptr` is a small, fast, move-only smart pointer for managing resources wtih exclusive ownership semantics. By default it uses `delete` for destruction, but custom deleters can be specified. Stateful deleters and function pointers increase the size of `unique_ptr` objects. [Stroustrup13](#Stroustrup13) §34.3.1, [Meyers14](#Meyers14) §18
 
-`unique_ptr` should generally be the first choice of smart pointer type. Converting a `unique_ptr` to a `shared_ptr` is easy. [Meyers14](#Meyers14) §18
+`unique_ptr` should generally be the first choice of smart pointer type. Converting a `unique_ptr` to a `shared_ptr` is easy. [Stroustrup13](#Stroustrup13) §34.5, [Meyers14](#Meyers14) §18
 
 Prefer `make_unique` to `new` when creating `unique_ptr` objects, whenever possible. [Meyers14](#Meyers14) §21
 
 
 ### shared_ptr
 
-`shared_ptr` offers convenience approaching that of garbage collection for the shared lifetime management of arbitrary resources. `shared_ptr` objects are typically twice as big as `unique_ptr` objects, incur overhead for control blocks, and require atomic reference count manipulations. By default it uses `delete` for destruction, but custom deleters can be specified. The type of the deleter has no effect on the type of `shared_ptr` objects. [Meyers14](#Meyers14) §19
+`shared_ptr` offers convenience approaching that of garbage collection for the shared lifetime management of arbitrary resources. `shared_ptr` objects are typically twice as big as `unique_ptr` objects, incur overhead for control blocks, and require atomic reference count manipulations. By default it uses `delete` for destruction, but custom deleters can be specified. The type of the deleter has no effect on the type of `shared_ptr` objects. [Stroustrup13](#Stroustrup13) §34.3.2, [Meyers14](#Meyers14) §19
 
 Avoid creating `shared_ptr` objects directly from variables of raw pointer type (including `this` within classes), as having more than one `shared_ptr` from a single raw pointer leads to undefined behavior. Instead, use `make_shared` (if custom deleters are not needed). Alternatively, pass the result of `new` directly to the `shared_ptr` constructor. [Meyers14](#Meyers14) §19
 
@@ -559,7 +564,7 @@ Prefer `make_shared` or `allocate_shared` to `new` when creating `shared_ptr` ob
 
 ### weak_ptr
 
-`weak_ptr` acts like a `shared_ptr` but allows pointing to an object that no longer exists. It can be used to construct `shared_ptr` objects, and can be useful for the implementation of caches, observer lists, and the prevention of `shared_ptr` cycles. [Meyers14](#Meyers14) §20
+`weak_ptr` acts like a `shared_ptr` but allows pointing to an object that no longer exists. It can be used to construct `shared_ptr` objects, and can be useful for the implementation of caches, observer lists, and the prevention of `shared_ptr` cycles. [Stroustrup13](#Stroustrup13) §34.3.3, [Meyers14](#Meyers14) §20
 
 
 ### auto_ptr
