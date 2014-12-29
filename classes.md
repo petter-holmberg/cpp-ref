@@ -1631,6 +1631,55 @@ Classes designed using the NVI pattern (Non-Virtual Interface) can be useful for
     };
 
 
+<a name="TypeErasure"></a>
+### Type Erasure
+
+Type Erasure is a technique providing polymorphism for arbitrary classes, without making virtual functions or templates part of their interface. A wrapping class provides value semantics and a common interface.
+
+**Example implementation:**
+
+    class TypeErasure
+    {
+    public:
+        // Templated constructor to allow arbitrary types.
+        template <typename T>
+        explicit TypeErasure(T obj) : self_(std::make_shared<Model<T>>(std::move(obj))) {}
+    
+        // "Polymorphic" function.
+        friend void show(const TypeErasure& obj) { obj.self_->show_(); }
+    private:
+        // Abstract base class corresponding to the internal interface being enforced.
+        struct Concept
+        {
+            virtual ~Concept() = default;
+    
+            virtual void show_() const = 0;
+        };
+    
+        // Derived class that adapts the interface and holds the actual data.
+        template <typename T>
+        struct Model : Concept
+        {
+            explicit Model(T obj) : data_(std::move(obj)) {}
+    
+            // Forwarding function
+            void show_() const { show(data_); }
+    
+            T data_;
+        };
+    
+        std::shared_ptr<const Concept> self_;
+    };
+    
+    // Free function required to type-erase std::string objects.
+    void show(const std::string& obj)
+    { std::cout << "Type is std::string" << std::endl; }
+    
+    // Free function required to type-erase objects of a user-defined class.
+    void show(const UserDefined& obj)
+    { std::cout << "Type is user-defined" << std::endl; }
+
+
 <a name="EBO"></a>
 ### Empty Base Optimization
 
