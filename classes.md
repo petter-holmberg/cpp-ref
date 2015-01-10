@@ -85,21 +85,19 @@ Use private inheritance instead of composition only when absolutely necessary, w
 - You need to override a virtual function.
 - The object needs to be constructed before other base sub-objects.
 
-Never use public inheritance except to model true Liskow IS-A and WORKS-LIKE-A. All overridden member functions must require no more and promise no less. [Sutter99](#Sutter99) §22
+Never use public inheritance except to model true Liskow "is-a" and "works-like-a". All overridden member functions must require no more and promise no less. [Sutter99](#Sutter99) §22
 
 Never inherit from a class that was not designed to be a base class.
 To add more functionality to a concrete class, define free (non-member) functions to do the job instead, and put them in the same namespace as the class they are designed to extend. [Sutter05](#Sutter05) §35
 
+When two similar concrete classes duplicate code, don't make one class the base class of the other. Instead, define a new abstract base class and make the two old classes inherit publicly from that. [Meyers96](#Meyers96) §33
+
 Never inherit publicly only because it allows you to reuse common code in the base class! Instead, inherit because it allows the derived class to be reused by code that uses objects of the base class polymorphically.
 Before object orientation, it has always been easy for new code to call existing code. Public inheritance specifically makes it easier for existing code to seamlessly and safely call new code. (So do templates, which provide static polymorphism that can blend well with dynamic polymorphism.) [Sutter99](#Sutter99) §22 [Sutter05](#Sutter05) §37
-
-When two similar concrete classes duplicate code, don't make one class the base class of the other. Instead, define a new abstract base class and make the two old classes inherit publicly from that. [Meyers96](#Meyers96) §33
 
 Both classes and templates support interfaces and polymorphism. Templates can be an alternative to implementing public inheritance (static polymorphism instead of dynamic). [Meyers05](#Meyers05) §41, [Sutter05](#Sutter05) §37
 - For classes, interfaces are explicit and centered on function signatures. Polymorphism occurs at runtime through virtual functions.
 - For template parameters, interfaces are implicit and based on valid expressions. Polymorphism occurs during compilation through template instantiation and function overloading resolution.
-
-Never redefine an inherited non-virtual function. [Meyers05](#Meyers05) §36
 
 Differentiate between inheritance of interface and inheritance of implementation: [Stroustrup13](#Stroustrup13) §3.2.4, [Meyers05](#Meyers05) §34
 - Inheritance of interface is different from inheritance of implementation. Under public inheritance, derived classes inherit base class interfaces.
@@ -123,10 +121,12 @@ Inheritance should be used only when: [Sutter05](#Sutter05) §34
     However, inside Derived's own member functions and friends only, a Derived object can indeed be used polymorphically as a Base (you can supply a pointer or reference to a Derived object where a Base object is expected), because members and friends have the necessary access.
     If instead of private inheritance you use protected inheritance, then the "is-a" relationship is additionally visible to further-derived classes, which means subclasses can also make use of the polymorphism.
 
+Never override an inherited non-virtual function. [Meyers05](#Meyers05) §36
+
 When overriding a virtual base class function: [Sutter05](#Sutter05) §38
 - Make the overriding function virtual as well.
 - Make the overriding function respect the same pre- and post-conditions as the base class function. (overrides should never require more or provide less than the original function.)
-- When overriding, never change the value of default arguments. [Meyers05](#Meyers05) §37
+- Never change the value of default arguments. [Meyers05](#Meyers05) §37
 - If the base class has multiple functions with the same name but different signatures, overriding just one hides all the others in the derived class. To bring them back into scope in the derived class, add a `using BaseClass::functionName` declaration in the derived class.
 
 Try to avoid multiple inheritance of more than one class that is not an [Abstract interface](#AbstractInterfaces). [Meyers05](#Meyers05) §40, [Sutter02](#Sutter02) §24, [Sutter05](#Sutter05) §36
@@ -135,14 +135,20 @@ Try to avoid multiple inheritance of more than one class that is not an [Abstrac
 - Multiple inheritance does have legitimate uses. One scenario involves combining public inheritance from an Abstract interface class with private inheritance from a class that helps with implementation. [Stroustrup13](#Stroustrup13) §21.3
 
 
-### Non-member, non-friend functions
+<a name="MemberVsNonMember"></a>
+### Member and friend functions vs. non-member, non-friend functions
 
 Non-member, non-friend functions improve encapsulation by minimizing dependencies. Whenever possible, prefer making functions non-member non-friends. [Stroustrup13](#Stroustrup13) §16.3.2, [Meyers05](#Meyers05) §23
 
-The standard requires that operators `=` `()`  `->` `[]` and must be members, and class-specific operators `new`, `new[]`, `delete`, and `delete[]` must be static members.
+Always define a non-member function in the same namespace as its related class to make the association explicit. [Stroustrup13](#Stroustrup13) §16.3.2, [Sutter05](#Sutter05) §57
+
+If you need type conversions on all parameters to a function (including the one that would otherwise be pointed to by the `this` pointer), the function must be a non-member. [Meyers05](#Meyers05) §24
+
+The standard requires that the binary operators `=` (assignment), `->` (member access), `[]` (array subscription), and the n-ary `()` (function call) operator, must be members, and that the class-specific operators `new`, `new[]`, `delete`, and `delete[]` must be static members.
+
 Use the following algorithm for determining whether a function should be a member and/or friend [Sutter05](#Sutter05) §44, [Sutter99](#Sutter99) §20:
 
-    If: The function is one of the operators =, ->, [], or (), which according to the standard must be members:
+    If: The function is required by the standard to be a member:
     
         Make it a member.
     
@@ -160,10 +166,7 @@ Use the following algorithm for determining whether a function should be a membe
     Else:
     
         Make it a member.
-
-Always define a non-member function in the same namespace as its related class to make the association explicit. [Stroustrup13](#Stroustrup13) §16.3.2, [Sutter05](#Sutter05) §57
-
-If you need type conversions on all parameters to a function (including the one that would otherwise be pointed to by the `this` pointer), the function must be a non-member. [Meyers05](#Meyers05) §24
+    
 
 
 ### Exception guarantees
@@ -828,7 +831,7 @@ For an [Exception class](#ExceptionClasses):
 For a [RAII class](#RAII):
 - Allocate the resource in it (or do setup for lazy allocation later).
 
-The default constructor is the one that takes no arguments. If possible, one should be defined by the class (must be done explicitly if other constructors are defined) because otherwise the class will not be usable in arrays and STL containers, and in virtual base classes the lack of one means that all derived classes must explicitly define all the base class's arguments. [Meyers96](#Meyers96) §4
+The default constructor is the one that takes no arguments. If possible, one should be defined by the class (must be done explicitly if other constructors are defined) because otherwise the class will not be usable in arrays or with all standard container functions, and in virtual base classes the lack of one means that all derived classes must explicitly define all the base class's arguments. [Meyers96](#Meyers96) §4
 
 If the constructor can take exactly one argument (default values may allow this for multi-argument constructors), use the `explicit` keyword to prevent implicit type conversion (almost always unwanted). [Stroustrup13](#Stroustrup13) §16.2.6, [Meyers96](#Meyers96) §5, [Sutter05](#Sutter05) §40
 
@@ -1067,13 +1070,7 @@ By default, avoid providing implicit conversion operators of the form `operator 
 
 When overloading operators, provide multiple versions with different argument types, when applicable, to prevent wasteful implicit type conversions (e.g. for string comparison) [Sutter05](#Sutter05) §29
 
-For all operators where you have to choose to either implement them as a member function or a non-member function, use the following rules of thumb to decide:
-
-- If it is a unary operator, implement it as a member function.
-- If a binary operator treats both operands equally (it leaves them unchanged), implement this operator as a non-member function.
-- If a binary operator does not treat both of its operands equally (usually it will change its left operand), it might be useful to make it a member function of its left operand’s type, if it has to access the operand's private parts.
-
-The binary operators `=` (assignment), `[]` (array subscription), `->`` (member access), as well as the n-ary `()` (function call) operator, must always be implemented as member functions, because the syntax of the language requires them to.
+When implementing an operator, use the [Member and friend functions vs. non-member, non-friend functions](#MemberVsNonMember) rules of thumb, as well as any specific advice for the operator detailed below, to decide how to implement it.
 
 
 #### operator=
