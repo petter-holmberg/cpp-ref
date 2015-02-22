@@ -849,8 +849,9 @@ If the class legally can have "optional" members that may throw during construct
 
 Making the constructor(s) private prevents object instantiation. A function made `friend` of the class, or defined `static` in the class, will be allowed to access the private constructor and can therefore be useful as a means to control object instantiation, by holding static instances inside it. [Meyers96](#Meyers96) §26
 
-In C++11, a constructor that takes a single argument of type `std::initializer_list` is called an initializer-list constructor. It is used to construct objects using a `{}`-list as its initializer value. If a class is a container, give it an initializer-list constructor.
-During constructor overload resolution, braced intializers are matched to `std::intializer_list` parameters if at all possible, even if other constructors offer seemingly better matches. An example of where the choice can make a significant difference is creating a `std::vector<numeric type>` with two arguments. [Stroustrup13](#Stroustrup13) §17.3.4, [Meyers14](#Meyers14) §7
+In C++11, a constructor that takes a single argument of type `std::initializer_list<>` is called an initializer-list constructor. It is used to construct objects when using a `{}`-list as its initializer value (with other types of construction it cannot be called). If a class is a container, give it an initializer-list constructor.
+During constructor overload resolution, braced intializers are matched to `std::intializer_list` parameters if at all possible, even if other constructors offer seemingly better matches. An example of where the choice can make a significant difference is creating a `std::vector<numeric type>` with two arguments. This also means that adding a `std::intializer_list` constructor overload can break client code that used braced initializers to call another constructor.
+A varaible declared `auto` and using braced initializers will be of a type equivalent to `std::initializer_list<T>`, not the type of the class the constructor belongs to. [Stroustrup13](#Stroustrup13) §17.3.4, [Meyers14](#Meyers14) §7
 
 
 #### Destructor

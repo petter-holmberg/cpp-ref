@@ -30,14 +30,14 @@ The STL containers can be subdivided into two categories:
 
 1.  [Sequence containers](#SequenceContainers):
     Containers oriented towards sequential access of objects.
-    The standard sequence containers are `vector`, `string`, `deque`, `list`, and (in C++11) `forward_list`.
+    The standard sequence containers are `vector`, `deque` and `list`.
 2.  [Associative containers](#AssociativeContainers):
     Containers oriented towards random access of objects.
     The standard associative containers are `set`, `multiset`, `map`, `multimap`, and (in C++11), `unordered_set`, `unordered_multiset`, `unordered_map` and `unordered_multimap`.
 
-Additionally, in C++11 there are [Container adaptors](#ContainerAdaptors) providing specialized interfaces to other containers: `priority_queue`, `queue` and `stack`.
+Other types that provide much of what is required by standard containers include `array`, `bitset`, `forward_list`, `string` and `valarray`.
 
-Other types that provide much of what is required by standard containers include `array`, `bitset` and `valarray`.
+Additionally, in C++11 there are [Container adaptors](#ContainerAdaptors) providing specialized interfaces to other containers: `priority_queue`, `queue` and `stack`.
 
 Code should never be written with the goal to generalize the use of a specific container, so that it can be replaced without touching any code that uses it.
 Instead, find the container that best matches the required use cases, and use typedefs to clarify syntax and make container replacement easier in the event that it needs to be done. [Meyers01](#Meyers01) §2
@@ -84,7 +84,7 @@ To do this, insert and erase in a copy of the container, then use `swap()` to sw
 <a name="SequenceContainers"></a>
 ### Sequence containers
 
-The standard sequence containers are `vector`, `string`, `deque`, `list`, and `forward_list`.
+The standard sequence containers are `vector`, `deque` and `list`.
 
 
 #### vector
@@ -102,21 +102,6 @@ A `vector` only deals with properly initialized objects. This is not a requireme
 Never use `vector<bool>` as a container, instead use `deque<bool>` or `bitset<bool>`. [Stroustrup13](#Stroustrup13) §34.2.3, [Meyers01](#Meyers01) §18 [Sutter02](#Sutter02) §6
 
 
-#### string
-
-`string` should always be preferred to a dynamically allocated char array. [Meyers01](#Meyers01) §13
-
-`string` can be implemented in many different ways, so inferring something about its memory use and performance compared to char arrays without consulting the specific implementation's documentation is a bad idea. [Meyers01](#Meyers01) §15
-
-Many `string` implementations use reference counting. If this is a problem, a `vector<char>` can be used instead. [Meyers01](#Meyers01) §13
-
-Using `swap()` on `string`s invalidates iterators, pointers and references to them. [Meyers01](#Meyers01) §1
-
-Using `c_str()` is the only safe and correct way to pass `string`s to a C API that expects a char array. [Meyers01](#Meyers01) §16
-
-Directly or indirectly, use `substr()` to read substrings and `replace()` to write substrings. [Stroustrup13](#Stroustrup13) §36.3.8
-
-
 #### deque
 
 While `vector` should be the default sequence container of choice, `deque` should be used when most insertions and deletions take place at the beginning or at the end of the sequence.
@@ -128,11 +113,6 @@ It offers constant-time `insert()` and `erase()` operations at both ends, uses m
 A `list` is implemented as a doubly-linked list and allows inserting and deleting elements without moving existing elements.
 
 A `list` usually has a four-word-per-element memory overhead, and traversal of elements is significantly slower than in a `vector`. [Stroustrup13](#Stroustrup13) §31.4.2
-
-
-#### forward_list
-
-A `forward_list` is implemented as a singly-linked list and is ideal for empty and very short sequences that are typically traversed from the beginning. [Stroustrup13](#Stroustrup13) §31.4.2
 
 
 <a name="AssociativeContainers"></a>
@@ -201,6 +181,30 @@ Avoid in-place key modifications in `multiset`s (see `set`).
 Using `operator[]` is the most efficient method for updating existing elements in a `map`, while using `insert()` is more efficient for adding new elements. [Meyers01](#Meyers01) §24
 
 
+<a name="OtherContainers"></a>
+### Other containers
+
+
+#### string
+
+`string` should always be preferred to a dynamically allocated char array. [Meyers01](#Meyers01) §13
+
+`string` can be implemented in many different ways, so inferring something about its memory use and performance compared to char arrays without consulting the specific implementation's documentation is a bad idea. [Meyers01](#Meyers01) §15
+
+Many `string` implementations use reference counting. If this is a problem, a `vector<char>` can be used instead. [Meyers01](#Meyers01) §13
+
+Using `swap()` on `string`s invalidates iterators, pointers and references to them. [Meyers01](#Meyers01) §1
+
+Using `c_str()` is the only safe and correct way to pass `string`s to a C API that expects a char array. [Meyers01](#Meyers01) §16
+
+Directly or indirectly, use `substr()` to read substrings and `replace()` to write substrings. [Stroustrup13](#Stroustrup13) §36.3.8
+
+
+#### forward_list
+
+A `forward_list` is implemented as a singly-linked list and is ideal for empty and very short sequences that are typically traversed from the beginning. [Stroustrup13](#Stroustrup13) §31.4.2
+
+
 <a name="ContainerAdaptors"></a>
 ### Container adaptors
 
@@ -215,6 +219,7 @@ The `stack` adaptor eliminates the non-stack operations on its container from th
 #### queue
 
 The `queue` adaptor is an interface to a container that allows the insertion of elements at the `back()` and the extraction of elements at the `front()`. [Stroustrup13](#Stroustrup13) §31.5.2
+
 
 #### priority_queue
 
@@ -355,10 +360,12 @@ Iterators can be classified into five categories depending on the functionality 
 
 All STL [Containers](#Containers) offer four types of iterators:  `iterator`, `const_iterator`, `reverse_iterator` and `const_reverse_iterator`.
 
+All STL [Containers](#Containers) offer the `begin()` and `end()` functions returning iterators for that container.
+
 An `iterator` can be implicitly converted into a `const_iterator` or a `reverse_iterator`, and a `reverse_iterator` into a `const_reverse_iterator`.
 The `.base()` function of the reverse variants return their corresponding forward variant. [Stroustrup13](#Stroustrup13) §33.2.1
 
-`iterator_traits` can be used to obtain information about an iterator, such as the underlying value type, even if the iterator is of a simple pointer type. It can be used to find an optimal algorithm based on an iterator's category. [Stroustrup13](#Stroustrup13) §33.1.3
+`iterator_traits` can be used to obtain information about an iterator, such as the underlying value type, even if the iterator is of a simple pointer type. It can be used to find an optimal algorithm based on an iterator's category (which is available as the type of its `ìterator_category` member, an "iterator tag" type containing no data). [Stroustrup13](#Stroustrup13) §33.1.3
 
 For container insertion or erasure, typically prefer using the normal iterator even when other options are available. [Meyers01](#Meyers01) §26
 
@@ -380,6 +387,73 @@ To read characters from a stream efficiently, use `istreambuf_iterator`s: [Meyer
 
     ifstream inputFile("data.txt");
     string fileData(istreambuf_iterator<char>(inputFile), istreambuf_iterator<char>());
+
+
+### User-defined iterators
+
+User-defined container classes that implement the `iterator` and `const_iterator` types as well as the `begin()` and `end()` functions can be used with [standard algorithms](#Algorithms).
+
+The `iterator_traits` template defines a set of member types, which are used by some algorithms when determining certain properties of the iterators passed to them. Its default definition obtains these types from the iterator itself, and there are specializations for pointers.
+The easiest way to provide the required types is as nested typedefs in the user-defined iterator class. One way of doing this is to inherit from one of the base classes `input_iterator`, `output_iterator`, `forward_iterator`, `bidirectional_iterator`, or `random_access_iterator`.
+It is also possible to specialize `iterator_traits` to provide custom typedefs.
+
+
+#### Iterators from nested containers
+
+For containers with a nested internal container, the user-defined iterators simply need to delegate types and methods to the underlying container.
+
+**Example:**
+
+    class UserDefined
+    {
+    private:
+        vector<int> internal;
+    public:
+        typedef vector<int>::iterator iterator;
+        typedef vector<int>::const_iterator const_iterator;
+        iterator begin() { return internal.begin(); }
+        iterator end() { return internal.end(); }
+    };
+
+
+#### Iterators from pointers
+
+Since C pointers are legal iterators, delegation can also be made from C arrays.
+
+**Example:**
+
+    class UserDefined
+    {
+    private:
+        int internal[100];
+    public:
+        typedef int* iterator;
+        typedef const int* const_iterator;
+        iterator begin() { return &internal[0]; }
+        iterator end() { return &internal[100]; }
+    };
+
+
+#### Iterators for new containers
+
+The typical way of defining containers and their iterators is as follows:
+
+1.  Forward declare the iterator class.
+2.  Define the container.
+3.  In the container, make the iterator a friend class.
+4.  Define the iterator.
+
+An iterator for a new container type must define all the operators needed to support the required operations associated with its category.
+
+For *Input iterators*, the required operators are `operator++` for advancing the iterator, `operator*` to dereference it, and `operator==` and `operator!=` for comparison. In C++11, `swap()` must also be defined for the iterator.
+
+For *Output iterators*, the iterator must be dereferencable as an lvalue.
+
+For *Forward iterators*, both input an output functionality is required, and multi-pass forward traversal must be possible.
+
+For *Bidirectional iterators*, `operator--` for advancing in the reverse direction must be added.
+
+For *Random access iterators*, arithmetic operators, comparison operators, compound assignment operators and the index operator are also required.
 
 
 <a name="Algorithms"></a>
