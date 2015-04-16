@@ -992,7 +992,7 @@ If the type implementation is unknown, assume that move assignment is not presen
 <a name="swap"></a>
 ### swap
 
-The `std::swap()` function is typically implemented like this, utilizing the class's copy constructor and copy assignment operator:
+In C++98, the `std::swap()` function is typically implemented like this, utilizing the class's copy constructor and copy assignment operator:
 
     namespace std {
       template <typename T>
@@ -1007,6 +1007,8 @@ The `std::swap()` function is typically implemented like this, utilizing the cla
 For classes where this implementation is inefficient (for example classes consisting primarily of pointers to other types containing the real data), provide a No-fail `swap()` function to efficiently and infallibly swap the contents of this object with another's. It has many potential uses (primarily in [Value classes](#ValueClasses)), e.g. to implement assignment easily while maintaining the strong exception guarantee for objects composed of other objects that provide the [Strong Guarantee](#StrongGuarantee). [Meyers05](#Meyers05) §25, [Sutter99](#Sutter99) §12 [Sutter02](#Sutter02) §22 [Sutter05](#Sutter05) §56
 
 If you offer a member `swap()`, also offer a non-member `swap()` that calls the member. For classes (not templates), specialize `std::swap()` too. When calling `swap()`, employ a `using` declaration for `std::swap()`, then call `swap()` without namespace qualification. It's fine to totally specialize `std` templates for user-defined types, but never try to add something completely new to `std`. [Meyers05](#Meyers05) §25
+
+In C++11, `swap()` is implemented using `std::move`, so for types with an efficient move constructor and move assignment operator the default implementation is usually sufficient.
 
 **Example implementation:**
 
