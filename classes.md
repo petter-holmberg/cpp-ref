@@ -221,7 +221,7 @@ Class types
 
 C++ classes come in many flavors, and depending on which one you want to implement, different rules apply. Without being clear about what type of class you want, you are not likely to implement it correctly. [Sutter05](#Sutter05) §32
 
-A class shold neatly fall into one of these categories. If it doesn't it is probably a sign that the class is doing too much and should be divided into multiple classes.
+A class shold neatly fall into one of the categories below. If it doesn't it is probably a sign that the class is doing too much and should be divided into multiple classes.
 
 
 <a name="ValueClasses"></a>

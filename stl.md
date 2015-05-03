@@ -475,7 +475,9 @@ Using `.reserve()` in advance, for `vector`s and `string`s, can reduce the numbe
 When overwriting an entire container, the inserters are not necessary, but then use `.resize()` to ensure that for instance a `vector` can hold the new range of values. [Meyers01](#Meyers01) §30
 
 Functors typically make better algorithm parameters than functions, enabling optimization through inlining which often outperforms corresponding algorithm functions in C.
-It is also more portables, as different implementations of STL may have problems compiling code that uses algorithms used together with functions. [Meyers01](#Meyers01) §46
+It is also more portable, as different implementations of STL may have problems compiling code that uses algorithms used together with functions. [Meyers01](#Meyers01) §46
+
+Algorithms cannot change the number of elements in a container, because they don't know what container they are operating on (accessing it only through iterators.)
 
 Using STL algorithms to solve complex problems in one go can lead to "write-only code" that is very difficult to read and understand.
 Use good judgment and split up the problem or use alternative ways to solve the problem when it leads to clearer code. [Meyers01](#Meyers01) §47
@@ -594,7 +596,7 @@ For predicate-based erasing in [Sequence containers](#SequenceContainers), simpl
             ++i;
     }
 
-To do something in addition to erasing with each element (like logging), for [Associative containers](#AssociativeContainers) the second version above just needs to be extended. For [Sequence containers](#SequenceContainers) the return value of `erase()` must to be used:
+To do something in addition to erasing with each element (like logging), for [Associative containers](#AssociativeContainers) the second version above just needs to be extended. For [Sequence containers](#SequenceContainers) the return value of `erase()` must be used:
 
     for (Container<int>::iterator i = c.begin(); i != c.end(); ) {
         if (badValueFunction(*i)) {
