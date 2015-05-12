@@ -950,6 +950,8 @@ If you write/disable the copy assignment operator, also do the same for the copy
 
 If you write the copy assignment operator, and allocate or duplicate some resource in it, you should also write a destructor that releases it. [Sutter05](#Sutter05) §52
 
+Generation of a default copy assignment operator is disabled for a class containing a const member or reference member.
+
 In C++11, default generation of the copy assignment operator if a user-declared copy constructor or destructor is provided has been deprecated, so declare one (using either `default` or custom implementation) to make it future-proof. [Meyers14](#Meyers14) §17
 
 In C++11, the copy assignment operator is deleted if the class declares a move constructor or move assignment operator, and must be user-declared to enable copy assignment. [Meyers14](#Meyers14) §17
@@ -983,6 +985,8 @@ For a [RAII class](#RAII):
 - Check for self-assignment.
 - When there is no self-assignment, free any resources from the object itself and then implement moving the same as in the move constructor.
 - Return `*this`.
+
+Generation of a default move assignment operator is disabled for a class containing a const member or reference member.
 
 In C++11, the default move assignment operator performs member-wise moving of non-static data members. It is generated only if the class contains no user-declared copy operations, move operations, or destructor. Declaring one deletes the default copy operations.
 
