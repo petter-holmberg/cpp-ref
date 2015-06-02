@@ -204,6 +204,135 @@ Thread identities are of the type `std::thread::id` and can be retrieved in two 
 `std::thread::id` objects are copyable, comparable, hashable, totally ordered, and serializable, making them useful in many contexts.
 
 
+Sharing data between threads
+----------------------------
+
+
+### Mutexes
+
+Mutexes are the most general of the data-protection mechanisms available in C++. They are represented by the `std::mutex` class. Mutexes are locked with the `.lock()` member function and unlocked with `.unlock()`. It is not recommended to use them directly, but indirectly through the RAII class `std::lock_guard`. [Williams12](#Willams12) §3.2.1
+
+When possible, lock a mutex only while actually accessing the shared data. Try to do any processing of the data outside the lock. In particular, don't do any really time-consuming activities like file I/O while holding a lock. In general, a lock should be held for only the minimum possible time needed to perform the required operation. [Williams12](#Willams12) §3.2.8
+
+**Example:**
+
+    class threadsafe_list {
+        std::list<int> list_;    
+        std::mutex mut_;
+    public: 
+        void push_back(int new_value) {
+            std::lock_guard<std::mutex> guard(mut_);
+            list_.push_back(new_value);
+        }
+        bool contains(int value) {
+            std::lock_guard<std::mutex> guard(mut_);
+            return std::find(list_.begin(), list_.end(), value) != list_.end();
+        };
+        ...
+    };
+
+
+#### Avoiding race conditions
+
+It is possible to get race conditions even for objects protected by a mutex if the interface is not carefully designed. [Williams12](#Willams12) §3.2.3
+
+**Example:**
+
+    template <typename T>    
+    class not_threadsafe_stack {
+        std::stack<T> st_;
+        std::mutex mut_;
+        ... // Interface like std::stack
+    };
+    
+    void thread_function() {
+        not_threadsafe_stack<int> s;
+        if (!s.empty()) {
+            int value = s.top(); // Bad, another thread may have emptied the stack by now.
+            s.pop(); // Bad, another thread may have read the same value from the top of the stack as this thread, causing either this thread or the other thread to pop the next value without either thread having called do_something() with it.
+            do_something(value);
+        }
+    }
+
+Don't pass pointers or references to protected data outside the scope of the lock, whether by returning them from a function, storing them in externally visible memory, or passing them as arguments to user-supplied functions. [Williams12](#Willams12) §3.2.2
+
+**Example:**
+
+    class not_threadsafe_data {
+        data data_;    
+        std::mutex mut_;
+    public: 
+        data& get() {
+            return data_; // Bad, caller may modify data_ through the returned reference without locking!
+        }
+        template <typename Function>
+        bool process(Function func) {
+            std::lock_guard<std::mutex> guard(data_);
+            func(data_); // Bad, func may modify data_ through an internal pointer or reference later without locking!
+        };
+    };
+
+
+#### Avoiding deadlocks
+
+When two threads need access to two or more mutexes at once, they must always be locked in the same order to avoid the possibility of a deadlock. Use the `std::lock()` function to ensure this instead of doing it manually. It takes two or more `std::mutex` or `std::uniqe_lock` objects and locks all mutexes at once without the possibility of deadlock. [Williams12](#Willams12) §3.2.4 §3.2.6
+
+A `std::unique_lock` object offers more flexibility by allowing deferred locking or early unlocking, which can be important for performance. It can also be used to allow a function to lock a mutex and then return it to transfer ownership to the caller so it can perform additional actions under the protection of the same lock. [Williams12](#Willams12) §3.2.7
+
+**Example:**
+
+    class threadsafe_data {
+        data data_;
+        std::mutex mut_;
+    public:
+        ...
+        friend void swap_1(const threadsafe_type& lhs, const threadsafe_type& rhs) { // Preferred approach when sufficient.
+            if (&lhs != &rhs) {
+                std::lock(lhs.mut_, rhs.mut_); // Lock both mutexes (and release all if one fails).
+                std::lock_guard<std::mutex> lock_a(lhs.mut_, std::adopt_lock); // std::adopt_lock indicates that the mutex is already locked.
+                std::lock_guard<std::mutex> lock_b(rhs.mut_, std::adopt_lock);
+                swap(lhs.data_, rhs.data_);
+            }
+        }
+    
+        friend void swap_2(const threadsafe_type& lhs, const threadsafe_type& rhs) { // Later locking, but slightly slower and takes more memory.
+            if (&lhs != &rhs) {
+                std::unique_lock<std::mutex> lock_a(lhs.mut_, std::defer_lock); // std::defer_lock indicates that the mutex is not yet locked and will be locked later.
+                std::unique_lock<std::mutex> lock_b(rhs.mut_, std::defer_lock);
+                std::lock(lock_a, lock_b); // Both mutexes are locked here.
+                swap(lhs.data_, rhs.data_);
+            }
+        }
+    };
+
+Deadlock can also occur if two or more threads call `.join()` on each other's `std::thread` object, causing them to wait for each other to finish. To avoid this possibility, use the following guidelines: [Williams12](#Willams12) §3.2.5
+- Avoid nested locks. If you already hold a lock, never acquire a second one as a separate action. Use `std::lock` to acquire all locks at once.
+- Avoid calling user-supplied code when holding a lock. That code may acquire another lock as a separate action.
+- If avoiding separate locking actions is unavoidable, define a fixed order of locking that's always consistent between threads.
+- Consider establishing a lock hierarchy, preventing a thread from locking a mutex if it already holds a lock from a lower-level mutex.
+- Avoid waiting for a thread while holding a lock. Thread may need to acquire the lock in order to proceed.
+- Prefer to join threads in the same function that started them.
+
+
+### Protecting shared data during initialization
+
+Use `std::call_once()` instead of a mutex for lazy initialization of expensive resources. Williams12](#Willams12) §3.3.1
+
+**Example:**
+
+    std::shared_ptr<resource> resource_ptr;
+    std::once_flag resouce_flag; // Keeps track of if the resource has been initialized.
+    
+    void init_resource() {
+        resource_ptr.reset(new resource);
+    }
+    
+    void use_resource() {
+        std::call_once(resource_flag, init_resource); // init_resource() Will only be called the first time use_resource() is called.
+        resource_ptr->do_something();
+    }
+
+
 References
 ----------
 
@@ -213,7 +342,7 @@ References
 
 <a name="Williams12"></a>
 [Williams12]
-"C++ Concurrency in Action, Practical Multithreading", ISBN 978-1-933-98877-1
+"C++ Concurrency in Action, Practical", ISBN 978-1-933-98877-1
 
 <a name="Meyers14"></a>
 [Meyers14]
