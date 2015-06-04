@@ -10,7 +10,7 @@ The guidelines cover C++11 and C++14, with notes on differences between the vers
 Concurrency overview
 --------------------
 
-There are two main reasons to use concurrency [Williams12](#Willams12) §1.2:
+There are two main reasons to use concurrency: [Williams12](#Willams12) §1.2
 - Separation of concerns
 - Performance
 
@@ -25,7 +25,12 @@ A *thread* is the system-level representation of the computer's facility for exe
 Tasks
 -----
 
-The task-based model of concurrency in C++ provides a high-level view that focuses on producing results concurrently, without requiring code that directly shares data between threads. Think in terms of tasks that can be executed concurrently, rather than directly in terms of threads. [Stroustrup13](#Stroustrup13) §42.4
+The task-based model of concurrency in C++ provides a high-level view that focuses on producing results concurrently, without requiring code that directly shares data between threads. Think in terms of tasks that can be executed concurrently, rather than directly in terms of threads, and prefer task-based programming to thread-based. [Meyers14](#Meyers14) §35 [Stroustrup13](#Stroustrup13) §42.4
+
+Situations when a thread-based rather than task-based approach may be appropriate include: [Meyers14](#Meyers14) §35
+- When there is a need to access to the API of the underlying threading implemenation.
+- When there is a need and possibility to optimize thread usage for the application.
+- When there is a need to implement threading technology beyond the C++ concurrency API.
 
 
 ### Futures
@@ -45,14 +50,24 @@ For simple asynchronous tasks, instead of launching a `std::thread` (which doesn
         return answer_1.get() + answer_2.get();
     }
 
-The implementation may decide to not actually invoke a calculation asynchronously, but instead delay it until a call to `.get()` or `.wait()` on the associated `std::future<>`. The optional `std::async()` launch policy parameter can be used to suggest which option to choose, with the values `std::launch::async` or `std::launch::deferred`. `std::launch::async | std::launch::deferred` is the default. Switching policies can be helpful in debugging concurrent code. [Stroustrup13](#Stroustrup13) §42.4.6
+By default, the implementation may decide to not actually invoke a task asynchronously. The optional `std::async()` launch policy parameter can be used to suggest which option to choose, with the values `std::launch::async` to force the task to run asynchonously on a different thread, or `std::launch::deferred` to run it synchronously when a call to `.get()` or `.wait()` on an associated `std::future<>` or `std::shared_future<>` is invoked. `std::launch::async | std::launch::deferred` is the default. Switching policies can be helpful in debugging concurrent code. [Meyers14](#Meyers14) §36 [Stroustrup13](#Stroustrup13) §42.4.6
 
-A `std::future<>` object needs to be protected via a mutex or some other synchronization mechanism if multiple threads have access to it. The same is true for `std::shared_future<>`, but copies of a `std::shared_future<>` referring to the same result can be used without synchronization. This is by design: A `std::future` models unique ownership of the asynchronous result, where only one call to `.get()` should be made, but with a `std::shared_future<>`, mutliple threads can wait for the same result through their own local copy. Copies can be obtained via the `.share()` member function. [Williams12](#Willams12) §4.2.5
+If the following conditions are fulfilled, the default launch policy for a task is fine: [Meyers14](#Meyers14) §36
+- The task need not run concurrently with the thread calling `.get()` or `.wait()`.
+- It doesn't matter which thread's `thread_local` variables are read or written.
+- Either there's a guarantee that `.get()` or `.wait()` will be called on the `std::future<>` returned by `std::async()` or it's acceptable that the task may never execute.
+- Code using `.wait_for()` or `.wait_until()` takes the possibility of deferred status into account. 
+
+A `std::future<>` object needs to be protected via a mutex or some other synchronization mechanism if multiple threads have access to it. The same is true for `std::shared_future<>`, but copies of a `std::shared_future<>` referring to the same result can be used without synchronization. This is by design; a `std::future<>` models unique ownership of the asynchronous result, where only one call to `.get()` should be made, but with a `std::shared_future<>` mutliple threads can wait for the same result through their own local copy. Copies can be obtained via the `.share()` member function. [Williams12](#Willams12) §4.2.5
+
+The final `std::future<>` or `std::shared_future<>` referring to a shared state for a non-deferred task launched via `std::async()` blocks until the task completes. [Meyers14](#Meyers14) §38
 
 
 ### Promises
 
-A `std::promise<>` is a handle to a shared state. It is where a task can deposit its result to be retrieved through a `std::future<>`, acquired through its `.get_future()` member function. The member functions `.set_value()` and `.set_exception()` sets the result (which can be an exception) and the member function. Don't `.set_value()` or `.set_exception()` to a `std::promise<>` twice, it will throw a `std::future_error` exception. [Stroustrup13](#Stroustrup13) §42.4.2
+A `std::promise<>` is a handle to a shared state. It is where a task can deposit its result to be retrieved through a `std::future<>`, acquired through its `.get_future()` member function. The member functions `.set_value()` and `.set_exception()` set the result (which can be an exception).
+
+Don't `.set_value()` or `.set_exception()` to a `std::promise<>` twice, it will throw a `std::future_error` exception. [Stroustrup13](#Stroustrup13) §42.4.2
 
 
 #### Packaged tasks
@@ -80,14 +95,14 @@ Instead of invoking `std::async()` directly, asynchronous tasks can be prepared 
         auto future2 = pt2.get_future(); // Will contain exception.
     
         try {
-            std::cout << future1.get() << "\n"; // Will print
-            std::cout << future2.get() << "\n"; // Will throw
+            std::cout << future1.get() << "\n"; // Will print.
+            std::cout << future2.get() << "\n"; // Will throw.
         } catch (const std::exception& ex) {
             std::cout << "Exception: " << ex.what() << "\n";
         }
     }
 
-`std::packaged_task`s can be used as a building block for thread pools or other task management schemes, such as running eash task on its own thread, or running them all sequentially on a particular background thread.
+`std::packaged_task<>`s can be used as a building block for thread pools or other task management schemes, such as running eash task on its own thread, or running them all sequentially on a particular background thread.
 
 
 Threads
@@ -96,45 +111,49 @@ Threads
 A `std::thread` is an abstraction of the computer hardware's notion of a computation. All threads work in the same address space. For hardware protection against data races, use some notion of a process.
 Stacks are not shared between threads, so local variables are not subject to data races, unless if they are accessed through pointers. For this reason, watch out for by-reference context bindings of local variables or capturing members of an object through `[this]` in lambdas used as tasks. If in doubt, copy (`[=]`). [Stroustrup13](#Stroustrup13) §42.2 §42.4.6
 
+Thread-based programming calls for manual management of thread exhaustion, oversubscription, load balancing, and adaptation to a new platform. [Meyers14](#Meyers14) §35
+
 
 ### Launching threads
 
-A new thread is started by constructing a `std::thread` object, passing a function or function object as the first argument. A `std::thread` is intended to map one-to-one with the operating system's threads, and is movable but not copyable. [Stroustrup13](#Stroustrup13) §42.2 [Williams12](#Willams12) §2.1.1:
+A new thread is started by constructing a `std::thread` object, passing a function or function object as the first argument. A `std::thread` is intended to map one-to-one with the operating system's software threads, and is movable but not copyable. If a new software thread cannot be created, a `std::system_error` exception is thrown. [Stroustrup13](#Stroustrup13) §42.2 [Williams12](#Willams12) §2.1.1
 
 **Example:**
 
     void thread_function() {
-        // In the first thread
+        // In the first thread.
     }
     
     struct thread_function_object() {
         void operator()() const {
-            // In the second thread
+            // In the second thread.
         }
     };
     
     struct thread_class() {
         void thread_member_function() {
-            // In the third thread
+            // In the third thread.
         }
     };
     
     std::thread first_thread(thread_function);
-    std::thread second_thread{thread_function_object()};
+    std::thread second_thread {thread_function_object()};
     thread_class obj;
     std::thread third_thread(&thread_class::thread_member_function, &obj);
     std::thread fourth_thread([](
-        /* In the fourth thread */
+        /* In the fourth thread. */
     });
+
+Because `std::thread` objects may start running a function immediately after they are initialized, declare them last in a class. That guarantees that at the time they are constructed, all the data members that precede them have already been initialized and can therefore safely be accessed by the asynchronously running thread that correspond to the `std::thread` data member. [Meyers14](#Meyers14) §37
 
 
 ### Waiting for threads to complete
 
-Once a thread is started, explicitly decide to wait for it to finish by calling `.join()`, or leave it to run on its own by calling `.detach()`. If none of these options are chosen, the thread's destructor will terminate the program, to prevent a system thread from accidentally outliving its `std::thread` object. Avoid destroying a running thread like this. [Stroustrup13](#Stroustrup13) §42.2.2
+Once a thread is started, explicitly decide to wait for it to finish by calling `.join()`, or leave it to run on its own by calling `.detach()`. If none of these options are chosen, the thread's destructor will terminate the program, to prevent a system thread from accidentally outliving its `std::thread` object. Avoid destroying a running thread like this by making `std::thread`s unjoinable on all paths. [Meyers14](#Meyers14) §37 [Stroustrup13](#Stroustrup13) §42.2.2
 
 Calling `.join()` can only be done once for a given thread and once it's called, the `std::thread` object is no longer associated with the now finished thread. Its member function `.joinable()` will return false to indicate this. [Stroustrup13](#Stroustrup13) §42.2 [Williams12](#Willams12) §2.1.2
 
-To avoid program termination if an exception occurs, make sure that the thread is joined in both the normal and the exceptional case. This can be ensured using the RAII idiom: [Stroustrup13](#Stroustrup13) §42.2.4 [Williams12](#Willams12) §2.1.3
+To avoid program termination if an exception occurs, make sure that the thread is joined in both the normal and the exceptional case. This can be ensured using the RAII idiom. [Stroustrup13](#Stroustrup13) §42.2.4 [Williams12](#Willams12) §2.1.3
 
 **Example implementation:**
 
@@ -152,7 +171,7 @@ To avoid program termination if an exception occurs, make sure that the thread i
     };
     
     void thread_function() {
-        // Do some work
+        // Do some work.
     }
     
     void func() {
@@ -168,7 +187,7 @@ Calling `.detach()` on a `std::thread` object leaves the thread to run in the ba
 
 If a thread is detached, ensure that the data accessed by the thread outlives it. One common way to ensure this is to copy the data into the thread rather than sharing it.
 
-An often better alternative to detaching threads is to move them into a "main module" of a program, access them through `unique::ptr`s or `shared::ptr`s, or place them in a `std::vector<std::thread>` to avoid losing track of them. [Stroustrup13](#Stroustrup13) §42.2.5
+An often better alternative to detaching threads is to move them into a "main module" of a program, access them through `unique::ptr<>`s or `shared::ptr<>`s, or place them in a `std::vector<std::thread>` to avoid losing track of them. [Stroustrup13](#Stroustrup13) §42.2.5
 
 
 ### Passing arguments to threads
@@ -205,7 +224,7 @@ Objects supporting move semantics can also be moved into `std::thread`s to trans
 **Example:**
 
     void process_big_object(std::unique_ptr<big_object> obj) {
-        // Do some work on obj
+        // Do some work on obj.
     }
     
     void fire_and_forget() {
@@ -222,7 +241,7 @@ Objects supporting move semantics can also be moved into `std::thread`s to trans
 **Example:**
 
     void thread_function() {
-        // Do some work
+        // Do some work.
     }
     
     std::thread make_thread() {
@@ -232,12 +251,12 @@ Objects supporting move semantics can also be moved into `std::thread`s to trans
     void accept_thread(std::thread thr);
     
     void start_thread() {
-        accept_thread(std::thread(thread_function));
+        accept_thread(std::thread(thread_function)); // Moves rvalue thread.
         std::thread thr(thread_function);
-        accept_thread(std::move(thr));
+        accept_thread(std::move(thr)); // Moves lvalue thread.
     }
 
-Transfer of `std::thread` ownership can be used to ensure that threads are joined before a scope is exited:
+Transfer of `std::thread` ownership can be used to ensure that threads are joined before a scope is exited.
 
 **Example:**
 
@@ -265,11 +284,11 @@ Transfer of `std::thread` ownership can be used to ensure that threads are joine
         do_something_that_might_throw();
     };
 
-`std::thread` objects can be stored in move-aware containers:
+`std::thread` objects can be stored in move-aware containers.
 
 **Example:**
 
-    std::vector<std::thread> threads {std::thread(thread_function), std::thread(thread_function)}; // Spawn two threads
+    std::vector<std::thread> threads {std::thread(thread_function), std::thread(thread_function)}; // Spawn two threads.
     std::for_each(threads.begin(), threads.end(), std::mem_fn(&std::thread::join)); // Wait for each thread to finish, in turn.
 
 
@@ -281,7 +300,7 @@ Use the `std::thread::hardware_concurrency()` function to get a hint of how many
 ### Identifying threads
 
 Thread identities are of the type `std::thread::id` and can be retrieved in two ways: [Williams12](#Willams12) §2.5
-- By calling the `.get_id()` member function of a `std::thread` object (may return a default-constructed instance if this object has no associated thread).
+- By calling the `.get_id()` member function of a `std::thread` object (returns a default-constructed instance if this object has no associated thread).
 - By calling the `std::this_thread::get_id()` function from within a thread.
 
 `std::thread::id` objects are copyable, comparable, hashable, totally ordered, and serializable, making them useful in many contexts.
@@ -293,7 +312,7 @@ Thread identities are of the type `std::thread::id` and can be retrieved in two 
 #### Mutexes
 
 Mutexes are the most general of the data-protection mechanisms available in C++. They are represented by the `std::mutex`, `std::recursive_mutex`, `std::timed_mutex` and `std::recursive_timed_mutex` classes. Only one thread can own a mutex at once.
-Mutexes are locked with the `.lock()` member function and unlocked with `.unlock()`. It is usually not recommended to use them directly, but indirectly through the RAII classes `std::lock_guard` or `std::unique_lock`. [Stroustrup13](#Stroustrup13) §42.3.1.4 [Williams12](#Willams12) §3.2.1
+Mutexes are locked with the `.lock()` member function and unlocked with `.unlock()`. View mutexes as a resource; it is usually not recommended to use them directly, but indirectly through the RAII classes `std::lock_guard<>` or `std::unique_lock<>`. [Stroustrup13](#Stroustrup13) §42.3.1.4 [Williams12](#Willams12) §3.2.1
 
 When possible, lock a mutex only while actually accessing the shared data. Try to do any processing of the data outside the lock. In particular, don't do any really time-consuming activities like file I/O while holding a lock. In general, a lock should be held for only the minimum possible time needed to perform the required operation. [Williams12](#Willams12) §3.2.8
 
@@ -317,11 +336,11 @@ When possible, lock a mutex only while actually accessing the shared data. Try t
 
 #### Avoiding race conditions
 
-The best way to avoid data races is not to share data:
-Keep interesting data in local variables, in free store not shared with other threads, or in `thread_local` memory.
-Do not pass pointers to such data to other `std::thread`s.
-When such data needs to be processed by another `std::thread`, pass pointers to a specific section of the data and make sure not to touch that section of the data until after termination of the task.
-When none of these options are possible, use locking through a `std::mutex` or a `std::condition_variable`. [Stroustrup13](#Stroustrup13) §42.3
+The best way to avoid data races is not to share data: [Stroustrup13](#Stroustrup13) §42.3
+- Keep interesting data in local variables, in free store not shared with other threads, or in `thread_local` memory.
+- Do not pass pointers to such data to other `std::thread`s.
+- When such data needs to be processed by another `std::thread`, pass pointers to a specific section of the data and make sure not to touch that section of the data until after termination of the task.
+- When none of these options are possible, use locking through a `std::mutex` or a `std::condition_variable`.
 
 A variable declared `thread_local` is owned by and lives as long as a `std::thread`, and is not accessible from other `std::thread`s. Unless accessed through a pointer, it is therefore not subject to data races between threads, as each `std::thread` has its own copy of all `thread_local` variables.
 On some systems the amount of stack storage for a `std::thread` is very limited, so global `thread_local` variables can be used as a mechanism to store large amounts of non-shared data, but since they share the logical problems of normal global variables they are usually best avoided. [Stroustrup13](#Stroustrup13) §42.2.8
@@ -342,8 +361,8 @@ It is possible to get race conditions even for objects protected by a mutex if t
     void thread_function() {
         not_threadsafe_stack<int> s;
         if (!s.empty()) {
-            int value = s.top(); // Bad, another thread may have emptied the stack by now.
-            s.pop(); // Bad, another thread may have read the same value from the top of the stack as this thread, causing either this thread or the other thread to pop the next value without either thread having called do_something() with it.
+            int value = s.top(); // Bad, another thread may have emptied the stack by now!
+            s.pop(); // Bad, another thread may have read the same value from the top of the stack as this thread, causing either this thread or the other thread to pop the next value without either thread having called do_something() with it!
             do_something(value);
         }
     }
@@ -371,9 +390,9 @@ Don't pass pointers or references to protected data outside the scope of the loc
 
 When one thread function locks a `std::mutex` and calls itself recursively, it deadlocks with itself. To solve this problem, use a `std::recursive_mutex`, which can be locked repeatedly within the same thread. [Stroustrup13](#Stroustrup13) §42.3.1.1
 
-When two threads need access to two or more mutexes at once, they must always be locked in the same order to avoid the possibility of a deadlock. Use the `std::lock()` or `std::try_lock()` functions to ensure this instead of doing it manually. They take two or more `std::mutex` or `std::uniqe_lock` objects and lock all mutexes at once without the possibility of deadlock. [Stroustrup13](#Stroustrup13) §42.3.2 [Williams12](#Willams12) §3.2.4 §3.2.6
+When two threads need access to two or more mutexes at once, they must always be locked in the same order to avoid the possibility of a deadlock. Use the `std::lock()` or `std::try_lock()` functions to ensure this instead of doing it manually. They take two or more `std::mutex` or `std::unique_lock<>` objects and lock all mutexes at once without the possibility of deadlock. [Stroustrup13](#Stroustrup13) §42.3.2 [Williams12](#Willams12) §3.2.4 §3.2.6
 
-A `std::unique_lock` object offers more flexibility by allowing deferred locking or early unlocking, which can be important for performance. It can also be used to allow a function to lock a mutex and then return it to transfer ownership to the caller so it can perform additional actions under the protection of the same lock. [Williams12](#Willams12) §3.2.7
+A `std::unique_lock<>` object offers more flexibility by allowing deferred locking or early unlocking, which can be important for performance. It can also be used to allow a function to lock a mutex and then return it to transfer ownership to the caller so it can perform additional actions under the protection of the same lock. [Williams12](#Willams12) §3.2.7
 
 **Example:**
 
@@ -390,7 +409,6 @@ A `std::unique_lock` object offers more flexibility by allowing deferred locking
                 swap(lhs.data_, rhs.data_);
             }
         }
-    
         friend void swap_2(const threadsafe_type& lhs, const threadsafe_type& rhs) { // Later locking, but slightly slower and takes more memory.
             if (&lhs != &rhs) {
                 std::unique_lock<std::mutex> lock_a(lhs.mut_, std::defer_lock); // std::defer_lock indicates that the mutex is not yet locked and will be locked later.
@@ -472,21 +490,23 @@ There are two types of condition variables: `std::condition_variable`, which onl
 
 The `.wait()` member function requires a `std::unique_lock` because it will unlock the associated mutex if the lambda returns false, put the current thread in a waiting state and re-lock it to check again once the `.notify_one()` member function has been called by the other thread.
 
-A "plain" `.wait()` is a `.wait()` without the predicate argument. This is a low-level operation that should always be used in a loop, as it allows the current thread to wake up "spuriously" without a notification from another thread. [Williams12](#Willams12) §4.1.
+A "plain" `.wait()` is a `.wait()` without the predicate argument. This is a low-level operation that should always be used in a loop, as it allows the current thread to wake up "spuriously" without a notification from another thread. [Williams12](#Willams12) §4.1.1
 
 With `notify_one()`, only one waiting thread will be notified to check its condition again. Use the `.notify_all()` member function if multiple threads should be notified to check their conditions again all at once.
 
 Don't use a function with side-effects to check together with `.wait()`, as it may be called an intederminate number of times. [Williams12](#Willams12) §4.1.1
 
+Consider `void` futures instead of condition variables for one-shot event communication. [Meyers14](#Meyers14) §39
+
 
 #### Waiting with a time limit
 
-The `std::condition_variable<>` and `std::future<>` variants have `.wait_for()` and `.wait_until()` member functions, with variants that just wait until signaled, or that check a supplied predicate when woken and returns only when the predicate is true or when the timeout has expired. They work with the `std::chrono::time_point` and `std:chrono::duration` types.
+The `std::condition_variable<>` and `std::future<>` variants have `.wait_for()` and `.wait_until()` member functions, with variants that just wait until signaled, or that check a supplied predicate when woken and returns only when the predicate is true or when the timeout has expired. They work with the `std::chrono` `time_point` and `duration` types.
 
 
 ### Putting the current thread to sleep
 
-The `this_thread::sleep_until()` and `this_tread::sleep_for()` functions can be used to put the current thread to sleep. The `this_thread::yield()` is used to give another `std::thread` a chance to proceed, without explicitly blocking the current thread. Usually, it is better to use `this_thread::sleep()` as this provides the scheduler with a duration, which can be used to make better choices about which threads to run when. Consider `this_thread::yield()` a feature for optimization in very rare and specialized cases. [Stroustrup13](#Stroustrup13) §42.2.6 [Williams12](#Willams12) §4.3.4]
+The `this_thread::sleep_until()` and `this_tread::sleep_for()` functions can be used to put the current thread to sleep. The `this_thread::yield()` function is used to give another `std::thread` a chance to proceed, without explicitly blocking the current thread. Usually, it is better to use `this_thread::sleep()` as this provides the scheduler with a duration, which can be used to make better choices about which threads to run when. Consider `this_thread::yield()` a feature for optimization in very rare and specialized cases. [Stroustrup13](#Stroustrup13) §42.2.6 [Williams12](#Willams12) §4.3.4
 
 If the system clock is reset, `this_thread::wait_until()` is affected, but not `this_thread::wait_for()`.
 
