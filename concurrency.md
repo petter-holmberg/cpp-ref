@@ -28,14 +28,14 @@ Tasks
 The task-based model of concurrency in C++ provides a high-level view that focuses on producing results concurrently, without requiring code that directly shares data between threads. Think in terms of tasks that can be executed concurrently, rather than directly in terms of threads, and prefer task-based programming to thread-based. [Meyers14](#Meyers14) §35 [Stroustrup13](#Stroustrup13) §42.4
 
 Situations when a thread-based rather than task-based approach may be appropriate include: [Meyers14](#Meyers14) §35
-- When there is a need to access to the API of the underlying threading implemenation.
+- When there is a need to access to the API of the underlying threading implementation.
 - When there is a need and possibility to optimize thread usage for the application.
 - When there is a need to implement threading technology beyond the C++ concurrency API.
 
 
 ### Futures
 
-If a thread needs to wait for a specific one-off event, use a `std::future<>`, or a `std::shared_future<>` to represent this event. The template parameter is for the type of the associated data, with the `<void>` specialization representing situations when there is no associated data. [Williams12](#Willams12) §4.2.1
+If a thread needs to wait for a specific one-off event, use a `std::future<>`, or a `std::shared_future<>` to represent this event. The template parameter is for the type of the associated data, with the `void` specialization representing situations when there is no associated data. [Williams12](#Willams12) §4.2.1
 
 For simple asynchronous tasks, instead of launching a `std::thread` (which doesn't have a direct way of returning a calculated result), use `std::async()`. It immediately returns a `std::future<>` object, which will eventually hold the returned value of the called function. To get the value, call the `.get()` member function of the future, which will block until the result can be returned.
 
@@ -45,12 +45,12 @@ For simple asynchronous tasks, instead of launching a `std::thread` (which doesn
     int expensive_calculation_2(int argument);
     
     int sum_of_expensive_calculations(int argument_1, int argument_2) {
-        std::future<int> answer_1 = std::async(expensive_calculation_1, argument_1);
-        std::future<int> answer_2 = std::async(expensive_calculation_2, argument_2);
-        return answer_1.get() + answer_2.get();
+        std::future<int> answer_1 = std::async(expensive_calculation_1, argument_1); // Immediately returns.
+        int answer_2 = expensive_calculation_2(argument_2);
+        return answer_1.get() + answer_2; // Blocks until the result is ready.
     }
 
-By default, the implementation may decide to not actually invoke a task asynchronously. The optional `std::async()` launch policy parameter can be used to suggest which option to choose, with the values `std::launch::async` to force the task to run asynchonously on a different thread, or `std::launch::deferred` to run it synchronously when a call to `.get()` or `.wait()` on an associated `std::future<>` or `std::shared_future<>` is invoked. `std::launch::async | std::launch::deferred` is the default. Switching policies can be helpful in debugging concurrent code. [Meyers14](#Meyers14) §36 [Stroustrup13](#Stroustrup13) §42.4.6
+By default, the implementation may decide not to actually invoke a task asynchronously. Use the optional `std::async()` launch policy parameter `std::launch::async` to force the task to run asynchonously on a different thread, or `std::launch::deferred` to run it synchronously when a call to `.get()` or `.wait()` on an associated `std::future<>` or `std::shared_future<>` is invoked. `std::launch::async | std::launch::deferred` is the default. Switching policies can be helpful in debugging concurrent code. [Meyers14](#Meyers14) §36 [Stroustrup13](#Stroustrup13) §42.4.6
 
 If the following conditions are fulfilled, the default launch policy for a task is fine: [Meyers14](#Meyers14) §36
 - The task need not run concurrently with the thread calling `.get()` or `.wait()`.
@@ -58,7 +58,7 @@ If the following conditions are fulfilled, the default launch policy for a task 
 - Either there's a guarantee that `.get()` or `.wait()` will be called on the `std::future<>` returned by `std::async()` or it's acceptable that the task may never execute.
 - Code using `.wait_for()` or `.wait_until()` takes the possibility of deferred status into account. 
 
-A `std::future<>` object needs to be protected via a mutex or some other synchronization mechanism if multiple threads have access to it. The same is true for `std::shared_future<>`, but copies of a `std::shared_future<>` referring to the same result can be used without synchronization. This is by design; a `std::future<>` models unique ownership of the asynchronous result, where only one call to `.get()` should be made, but with a `std::shared_future<>` mutliple threads can wait for the same result through their own local copy. Copies can be obtained via the `.share()` member function. [Williams12](#Willams12) §4.2.5
+A `std::future<>` object needs to be protected via a mutex or some other synchronization mechanism if multiple threads have access to it. The same is true for `std::shared_future<>`, but copies of a `std::shared_future<>` referring to the same result can be used without synchronization. This is by design; a `std::future<>` models unique ownership of the asynchronous result, where only one call to `.get()` should be made, but with a `std::shared_future<>` mutliple threads can wait for the same result through their own local copy. Copies can be obtained from the `.share()` member function. [Williams12](#Willams12) §4.2.5
 
 The final `std::future<>` or `std::shared_future<>` referring to a shared state for a non-deferred task launched via `std::async()` blocks until the task completes. [Meyers14](#Meyers14) §38
 
@@ -69,11 +69,27 @@ A `std::promise<>` is a handle to a shared state. It is where a task can deposit
 
 Don't `.set_value()` or `.set_exception()` to a `std::promise<>` twice, it will throw a `std::future_error` exception. [Stroustrup13](#Stroustrup13) §42.4.2
 
+**Example:**
+
+    void print_int(std::future<int>& fut) {
+        int x = fut.get(); // Retrieves 10 once the promise is fulfilled.
+        std::cout << "Value: " << x << "\n"; 
+    }
+    
+    int main() {
+        std::promise<int> prom;
+        std::future<int> fut = prom.get_future();
+        std::thread thr(print_int, std::ref(fut)); // Send future to new thread.
+        prom.set_value(10); // Fulfill promise (synchronizes with getting the future).
+        thr.join();
+        return 0;
+    }
+
 
 #### Packaged tasks
 
 Instead of invoking `std::async()` directly, asynchronous tasks can be prepared for later invocation by wrapping them in a `std::packaged_task<>` object. A `std::packaged_task<>` holds a task and a `std::future<>` / `std::promise<>` pair. The template parameter is a function signature for the asynchronous function to call (the function's parameters and return types can differ as long as they are convertible to the given types). 
-`std::packaged_task<>` is a callable type and invoking it sets its internal `std::future<>` that can be extracted with the `.get_future()` member function later to extract the result of the task. If the task returns a value, it causes a `.set_value()` on its internal `std::promise<>`. Similarly, if it throws an exception, it causes a `.set_exception()`. [Williams12](#Willams12) §4.2.2
+`std::packaged_task<>` is a callable type and invoking it sets its internal `std::future<>` that can be extracted with the `.get_future()` member function later to retrieve the result of the task. If the task returns a value, it causes a `.set_value()` on its internal `std::promise<>`. Similarly, if it throws an exception, it causes a `.set_exception()`. [Williams12](#Willams12) §4.2.2
 
 **Example:**
 
@@ -136,15 +152,17 @@ A new thread is started by constructing a `std::thread` object, passing a functi
         }
     };
     
-    std::thread first_thread(thread_function);
-    std::thread second_thread {thread_function_object()};
-    thread_class obj;
-    std::thread third_thread(&thread_class::thread_member_function, &obj);
-    std::thread fourth_thread([](
-        /* In the fourth thread. */
-    });
+    void start_four_threads() {
+        std::thread first_thread(thread_function);
+        std::thread second_thread {thread_function_object()};
+        thread_class obj;
+        std::thread third_thread(&thread_class::thread_member_function, &obj);
+        std::thread fourth_thread([](
+            /* In the fourth thread. */
+        });
+    }
 
-Because `std::thread` objects may start running a function immediately after they are initialized, declare them last in a class. That guarantees that at the time they are constructed, all the data members that precede them have already been initialized and can therefore safely be accessed by the asynchronously running thread that correspond to the `std::thread` data member. [Meyers14](#Meyers14) §37
+Because `std::thread` objects may start running a function immediately after they are initialized, declare them last in a class. That guarantees that at the time they are constructed, all the data members that precede them have already been initialized and can therefore safely be accessed by the asynchronously running thread that corresponds to the `std::thread` data member. [Meyers14](#Meyers14) §37
 
 
 ### Waiting for threads to complete
@@ -204,10 +222,9 @@ Arguments to the thread function can be passed as additional arguments to the `s
         char buffer[] = "Hello";
         std::thread t1(dont_update_str(buffer));             // Bad, references the local buffer!
         std::thread t2(dont_update_str(std::string(buffer))) // Good, copies buffer!
-        ...
     }
     
-    void update_str(std::string& str_to_update) {
+    void update_str(std::string& str) {
         str += " World";
     }
     
@@ -216,7 +233,6 @@ Arguments to the thread function can be passed as additional arguments to the `s
         std::thread t1(update_str(str)); // Bad, updates a copy of str!
         std::thread t2(update_str(std::ref(str))); // Good, updates the local string!
         std::thread t3([&str]{ update_str(str); }); // Also good, reference wrapper updates the local string!
-        ...
     }
 
 Objects supporting move semantics can also be moved into `std::thread`s to transfer ownership.
@@ -488,7 +504,7 @@ There are two types of condition variables: `std::condition_variable`, which onl
         }
     }
 
-The `.wait()` member function requires a `std::unique_lock` because it will unlock the associated mutex if the lambda returns false, put the current thread in a waiting state and re-lock it to check again once the `.notify_one()` member function has been called by the other thread.
+The `.wait()` member function call above requires a `std::unique_lock` because it will unlock the associated mutex if the lambda returns false, put the current thread in a waiting state and re-lock it to check again once the `.notify_one()` member function has been called by the other thread.
 
 A "plain" `.wait()` is a `.wait()` without the predicate argument. This is a low-level operation that should always be used in a loop, as it allows the current thread to wake up "spuriously" without a notification from another thread. [Williams12](#Willams12) §4.1.1
 
@@ -532,7 +548,7 @@ A synchronization operation on one or more memory locations is a *consume operat
 - A *consume operation* is a weaker form of an acquire operation. For a consume operation, other processors will see its effect before any subsequent operation's effect, except that effects that do not depend on the consume operation's value may happen before the consume operation.
 
 
-#### std::atomic_flag
+#### `std::atomic_flag`
 
 `std::atomic_flag` is the simplest atomic type, which represents a Boolean flag (one bit). It is the only atomic type that's guaranteed to be statically initialized and atomic for every implementation. It is intended as a basic building block and cannot even be used as a general Boolean flag, but can be used to implement other atomic types. `std::atomic_flag` objects must be initialized with the macro value `ATOMIC_FLAG_INIT`. [Stroustrup13](#Stroustrup13) §41.3.2.1 [Williams12](#Willams12) §5.2.2
 
@@ -551,19 +567,19 @@ A synchronization operation on one or more memory locations is a *consume operat
     };
 
 
-#### std::atomic<bool>
+#### `std::atomic<bool>`
 
 `std::atomic<bool>` is the simplest of the atomic integral types.
 
 
-#### std::atomic<T*>
+#### `std::atomic<T*>`
 
 `std::atomic<T*>` is the atomic form of a pointer to some type `T`.
 
 The C++ standard library also provides free functions for accessing instances of `std::shared_ptr<>` in an atomic fashion. The atomic operations available are *load*, *store*, *exchange*, and *compare/exchange*, taking a `std::shared_ptr<>*` as the first argument.
 
 
-#### std::atomic<int>
+#### `std::atomic<int>`
 
 A simple `std::atomic<int>` variable is close to ideal for a shared counter, such as a use count for a shared data structure. [Stroustrup13](#Stroustrup13) §41.3.1
 
@@ -571,23 +587,23 @@ A simple `std::atomic<int>` variable is close to ideal for a shared counter, suc
 
     template <typename T>
     class shared_ptr {
-        T* ptr;
-        std::atomic<int>* use_count;
+        T* ptr_;
+        std::atomic<int>* use_count_;
     public:
         ...
         ~shared_ptr {
-            if (--*use_count) {
-                delete ptr;
+            if (--*use_count_) {
+                delete ptr_;
             }
         }
     };
 
 
-#### std::atomic<T>
+#### `std::atomic<T>`
 
 To use a user-defined type with the `std::atomic<T>` primary class template it must fulfill the following criteria: [Williams12](#Willams12) §5.2.6
-- `T` must have be trivially copyable (i.e. no virtual functions or virtual base classes are allowed, allowing copying to be done using `memcpy()`).
-- `T` must be bitwise equality comparable (instances must be comparable with `memcmp()`).
+- `T` must be trivially copyable (copying could be done using `memcpy()`, and no virtual functions or virtual base classes are allowed).
+- `T` must be bitwise equality comparable (instances are comparable with `memcmp()`).
 
 
 ### Fences
@@ -617,8 +633,11 @@ Designing concurrent data structures
 ------------------------------------
 
 Data structures that use mutexes, condition variables, and futures to synchronize data are called *blocking*. The application calls library functions that will suspend the execution of a thread until another thread performs an action.
+
 Data structures that don't use blocking library functions are said to be *non-blocking*. Not all such data structures are *lock-free*.
+
 For a data structure to qualify as *lock-free*, more than one thread must be able to access the data concurrently, but they don't have to be able to do the same operations concurrently.
+
 A *wait-free* data structure is a *lock-free* data structure with the additional property that every thread accessing the data structure can complete its operation within a bounded number of steps, regardless of the behavior of other threads. Writing *wait-free* data structures correctly is extremely hard.
 
 Guidelines for designing concurrent data structures: [Williams12](#Willams12) §6.1.1
