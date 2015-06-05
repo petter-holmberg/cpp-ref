@@ -513,7 +513,144 @@ If the system clock is reset, `this_thread::wait_until()` is affected, but not `
 
 ### Avoiding thread starvation
 
-TODO [Stroustrup13](#Stroustrup13) §42.3.1
+The C++ standard does not guarantee a fair scheduling of threads, but in reality schedulers are "reasonably fair", making it extremely unlikely that a thread starves forever. [Stroustrup13](#Stroustrup13) §42.3.1
+
+
+Lock-free programming
+---------------------
+
+Primitive operations that do not suffer data races, often called *atomic operations*, can be used in the implementation of higher-level concurrency mechanisms, such as locks, threads, and lock-free data structures. With the notable exception of simple atomic counters, lock-free programming is for specialists. [Stroustrup13](#Stroustrup13) §41.3
+
+`volatile` is *not* a synchronization mechanism, it is for special memory where reads and writes should not be optimized away because it may be accessed by something external to the thread of control. [Meyers14](#Meyers14) §40 [Stroustrup13](#Stroustrup13) §41.4
+
+
+### Atomics
+
+A synchronization operation on one or more memory locations is a *consume operation*, an *acquire operation*, a *release operation*, or both an acquire and release operation.
+- For an *acquire operation*, other processors will see its effect before any subsequent operation's effect.
+- For a *release operation*, other processors will see every preceding operation's effect before the effect of the operation itself.
+- A *consume operation* is a weaker form of an acquire operation. For a consume operation, other processors will see its effect before any subsequent operation's effect, except that effects that do not depend on the consume operation's value may happen before the consume operation.
+
+
+#### std::atomic_flag
+
+`std::atomic_flag` is the simplest atomic type, which represents a Boolean flag (one bit). It is the only atomic type that's guaranteed to be statically initialized and atomic for every implementation. It is intended as a basic building block and cannot even be used as a general Boolean flag, but can be used to implement other atomic types. `std::atomic_flag` objects must be initialized with the macro value `ATOMIC_FLAG_INIT`. [Stroustrup13](#Stroustrup13) §41.3.2.1 [Williams12](#Willams12) §5.2.2
+
+**Example:**
+
+    class spinlock_mutex {
+        std::atomic_flag flag;
+    public:
+        spinlock_mutex() : flag(ATOMIC_FLAG_INIT) {}
+        void lock() {
+            while (flag.test_and_set(std::memory_order_acquire));
+        }
+        void unlock() {
+            flag.clear(std::memory_order_release);
+        }
+    };
+
+
+#### std::atomic<bool>
+
+`std::atomic<bool>` is the simplest of the atomic integral types.
+
+
+#### std::atomic<T*>
+
+`std::atomic<T*>` is the atomic form of a pointer to some type `T`.
+
+The C++ standard library also provides free functions for accessing instances of `std::shared_ptr<>` in an atomic fashion. The atomic operations available are *load*, *store*, *exchange*, and *compare/exchange*, taking a `std::shared_ptr<>*` as the first argument.
+
+
+#### std::atomic<int>
+
+A simple `std::atomic<int>` variable is close to ideal for a shared counter, such as a use count for a shared data structure. [Stroustrup13](#Stroustrup13) §41.3.1
+
+**Example:**
+
+    template <typename T>
+    class shared_ptr {
+        T* ptr;
+        std::atomic<int>* use_count;
+    public:
+        ...
+        ~shared_ptr {
+            if (--*use_count) {
+                delete ptr;
+            }
+        }
+    };
+
+
+#### std::atomic<T>
+
+To use a user-defined type with the `std::atomic<T>` primary class template it must fulfill the following criteria: [Williams12](#Willams12) §5.2.6
+- `T` must have be trivially copyable (i.e. no virtual functions or virtual base classes are allowed, allowing copying to be done using `memcpy()`).
+- `T` must be bitwise equality comparable (instances must be comparable with `memcmp()`).
+
+
+### Fences
+
+The standard fences `std::atomic_thread_fence` and `std::atomic_signal_fence` act as memory barriers, restricting operation reordering across the fence according to some specified memory ordering. Fences are used in combination with atomics to enforce memory-order constraints between operations. [Stroustrup13](#Stroustrup13) §41.3.2.2 [Williams12](#Willams12) §5.3.5
+
+**Example:**
+
+    std::atomic_bool x, y;
+    
+    void write_x_then_y() {
+        x.store(true, std::memory_order_relaxed); // Must happen before the load from x.
+        std::atomic_thread_fence(std::memory_order_release); // Synchronizes with acquire fence.
+        y.store(true, std::memory_order_relaxed);
+    }
+    
+    void read_y_then_x() {
+        while (!y.load(std::memory_order_relaxed);
+        std::atomic_thread_fence(std__memory_order_acquire); // Synchronizes with release fence.
+        if (x.load(std::memory_order_relaxed)) { // Must happen after the store to x.
+            ...
+        }
+    }
+
+
+Designing concurrent data structures
+------------------------------------
+
+Data structures that use mutexes, condition variables, and futures to synchronize data are called *blocking*. The application calls library functions that will suspend the execution of a thread until another thread performs an action.
+Data structures that don't use blocking library functions are said to be *non-blocking*. Not all such data structures are *lock-free*.
+For a data structure to qualify as *lock-free*, more than one thread must be able to access the data concurrently, but they don't have to be able to do the same operations concurrently.
+A *wait-free* data structure is a *lock-free* data structure with the additional property that every thread accessing the data structure can complete its operation within a bounded number of steps, regardless of the behavior of other threads. Writing *wait-free* data structures correctly is extremely hard.
+
+Guidelines for designing concurrent data structures: [Williams12](#Willams12) §6.1.1
+- Ensure that no thread can see a state where the invariants of the data structure have been broken by the actions of another thread.
+- Take care to avoid race conditions inherent in the interface to the data structure by providing functions for complete operations rather than for operation steps.
+- Pay attention to how the data structure behaves in the presence of exceptions to ensure that the invariants are not broken.
+- Minimize the opportunities for deadlock when using the data structure by restricting the scope of locks and avoiding nested locks where possible.
+
+Questions to ask yourself as the data structure designer: [Williams12](#Willams12) §6.1.1
+- Can the scope of locks be restricted to allow some parts of an operation to be performed outside the lock?
+- Can different parts of the data structure be protected with different mutexes?
+- Do all operations require the same level of protection?
+- Can a simple change to the data structure improve the opportunities for concurrency without affecting the operational semantics?
+
+
+### Lock-free concurrent data structures
+
+Advantages of *lock-free* data structures: [Williams12](#Willams12) §7.1
+- Enables maximum concurrency.
+- Robustness. If a thread dies while holding a lock, that data structure is broken forever.
+- Deadlocks are impossible (but there is still a possibility for live locks).
+
+Disadvantages of *lock-free* data structures: [Williams12](#Willams12) §7.1
+- Complexity. Considerably harder to achieve correctness.
+- Overall performance may decrease, because atomic operations can me much slower than their corresponing non-atomic operations, and there is likely to be more of them in a lock-free data structure.
+- Hardware has to synchronize data between threads, which can be a significant performance drain.
+
+Guidelines for designing lock-free data structures: [Williams12](#Williams12) §7.3
+- Use `std::memory_order_seq_cst` for prototyping, and relax the memory ordering constraints to optimize only once the basic operations are working.
+- Use a lock-free memory reclamation scheme, e.g. waiting until no threads are accessing the data structure and deleting all objects that are pending deletion, using *hazard pointers* to identify that a thread is accessing a particular object, or reference counting the objects so that they aren't deleted until there are no outstanding references.
+- Watch out for the *ABA problem*. It is particularly prevalent in algorithms that use free lists or otherwise recycle nodes rather than returning them to the allocator.
+- Identify busy-wait loops and help the other thread.
 
 
 References
