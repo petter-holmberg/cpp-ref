@@ -681,7 +681,7 @@ References
 
 <a name="Williams12"></a>
 [Williams12]
-"C++ Concurrency in Action, Practical", ISBN 978-1-933-98877-1
+"C++ Concurrency in Action, Practical Multithreading", ISBN 978-1-933-98877-1
 
 <a name="Meyers14"></a>
 [Meyers14]

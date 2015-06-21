@@ -70,6 +70,7 @@ If iterator, pointer and reference invalidation is a big concern, *Node-based co
 STL containers are not thread-safe by default. The standard suggests that:
 - Having multiple readers into the same container should be thread-safe.
 - Having multiple writers to different containers should be thread-safe.
+
 Not all implementations respect even these guarantees. [Meyers01](#Meyers01) §12
 
 All standard containers implement the Strong Guarantee for all operations, with two exceptions: [Sutter99](#Sutter99) §18
