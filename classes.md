@@ -320,10 +320,10 @@ Base classes are the building blocks of class hierarchies. They establish interf
     
         // Non-virtual functions, defining interface
      private:
-        // Copy constructor not implemented to disable copying
+        // Copy constructor not implemented to disable copying, preventing accidental slicing
         BaseClassCpp98(const BaseClassCpp98&);
     
-        // Copy assignment operator not implemented to disable copying
+        // Copy assignment operator not implemented to disable copying, preventing accidental slicing
         BaseClassCpp98& operator=(const BaseClassCpp98&);
     
         // Virtual functions (protected if needed), defining implementation details
@@ -1103,7 +1103,7 @@ The relational operators are:
 - `operator<=`
 - `operator=>`
 
-Standard algorithms such as `std::sort` and containers such as `std::set` expect `operator<` to be defined, by default, for the user-provided types. Typically, `operator<` is provided and the other relational operators are implemented in terms of `operator<`.
+Standard algorithms such as `std::sort` and containers such as `std::set` expect `operator<` to be defined, by default, for the user-provided types. The implementation must satisfy the *strict weak ordering* concept (if a is less than b then b is not less than a, if a is less than b and b is less than c then a is less than c, and so on). Typically, `operator<` is provided and the other relational operators are implemented in terms of `operator<`.
 
     inline bool operator< (const X& lhs, const X& rhs) { /* do actual comparison */ }
     inline bool operator> (const X& lhs, const X& rhs) {return rhs < lhs;}

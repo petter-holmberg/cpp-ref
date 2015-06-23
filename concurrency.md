@@ -88,7 +88,7 @@ Don't `.set_value()` or `.set_exception()` to a `std::promise<>` twice, it will 
 
 #### Packaged tasks
 
-Instead of invoking `std::async()` directly, asynchronous tasks can be prepared for later invocation by wrapping them in a `std::packaged_task<>` object. A `std::packaged_task<>` holds a task and a `std::future<>` / `std::promise<>` pair. The template parameter is a function signature for the asynchronous function to call (the function's parameters and return types can differ as long as they are convertible to the given types). 
+Instead of invoking `std::async()` directly, an asynchronous task can be prepared for later invocation by wrapping it in a `std::packaged_task<>` object. A `std::packaged_task<>` holds a task and a `std::future<>` / `std::promise<>` pair. The template parameter is a function signature for the asynchronous function to call (the function's parameters and return types can differ as long as they are convertible to the given types). 
 `std::packaged_task<>` is a callable type and invoking it sets its internal `std::future<>` that can be extracted with the `.get_future()` member function later to retrieve the result of the task. If the task returns a value, it causes a `.set_value()` on its internal `std::promise<>`. Similarly, if it throws an exception, it causes a `.set_exception()`. [Williams12](#Willams12) §4.2.2
 
 **Example:**
