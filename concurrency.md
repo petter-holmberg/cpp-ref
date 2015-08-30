@@ -71,16 +71,15 @@ Don't `.set_value()` or `.set_exception()` to a `std::promise<>` twice, it will 
 
 **Example:**
 
-    void print_int(std::future<int>& fut) {
-        int x = fut.get(); // Retrieves 10 once the promise is fulfilled.
-        std::cout << "Value: " << x << "\n"; 
+    void fulfill_promise(std::promise<int> prom) {
+        prom.set_value(10); // Fulfill promise (synchronizes with getting the future).
     }
     
     int main() {
         std::promise<int> prom;
-        std::future<int> fut = prom.get_future();
-        std::thread thr(print_int, std::ref(fut)); // Send future to new thread.
-        prom.set_value(10); // Fulfill promise (synchronizes with getting the future).
+        auto fut = prom.get_future();
+        std::thread thr(fulfill_promise, std::move(prom)); // Send promise to new thread.
+        int x = future.get(); // Retrieves 10 once the promise is fulfilled.
         thr.join();
         return 0;
     }
