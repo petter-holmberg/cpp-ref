@@ -104,7 +104,7 @@ Foundational concepts form the basis of a style of programming or are needed to 
 
 ##### EqualityComparable
 
-he ability to compare objects for equality is described by the
+The ability to compare objects for equality is described by the
 `EqualityComparable` concept:
 
     bool a == b (expression convertible to bool)
@@ -191,10 +191,10 @@ The `Regular` concept is the union of the `Semiregular` and `EqualityComparable`
 
 The `TotallyOrdered` concept requires The `EqualityComparable` concept plus the the inequality operators `<`, `>`, `<=`, and `>=`, with the following requirements: [Stroustrup12](#Stroustrup12) §3.3
 
-    a < b
-    a > b
-    a <= b
-    a >= b
+    bool a < b
+    bool a > b
+    bool a <= b
+    bool a >= b
     axiom: (total ordering using <)
         !(a < a) (irreflexive)
         a < b => !(b < a) (assymetric)
