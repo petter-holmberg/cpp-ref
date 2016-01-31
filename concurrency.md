@@ -671,6 +671,19 @@ Guidelines for designing lock-free data structures: [Williams12](#Williams12) §
 - Identify busy-wait loops and help the other thread.
 
 
+Designing parallel algorithms
+-----------------------------
+
+Data access pattern guidelines for concurrency: [Williams12](#Willams12) §8.3.2
+- Try to adjust the data distribution between threads so that data that's close together is worked on by the same thread.
+- Try to minimize the data required by any given thread.
+- Try to ensure that data accessed by separate threads is sufficiently far apart to avoid false sharing.
+
+Parallel algorithms often require more care with regards to exceptions than normal sequential algorithms. [Williams12](#Willams12) §8.4.1
+
+Before choosing the technique for dividing work between threads, it's important to identify which aspects of scalability are important; reducing the time it takes to perform an action, and/or increasing the amount of data that can be processed. [Williams12](#Willams12) §8.4.2
+
+
 References
 ----------
 
