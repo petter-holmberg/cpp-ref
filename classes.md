@@ -1070,6 +1070,22 @@ In C++11, `swap()` is implemented using `std::move`, so for types with an effici
     void swap(C<T>& a, C<T>& b) noexcept
     { a.swap(b); }
 
+In C++11, `swap` can be implemented easily for a class with many members using `std::tie`:
+
+    struct X {
+        int a = 0;
+        int b = 0;
+        int c = 0;
+    };
+    
+    void swap(X& a, X& b)
+    {
+        using std::swap;
+        auto a_members = std::tie(a.a, a.b, a.c);
+        auto b_members = std::tie(b.a, b.b, c.c);
+        swap(a_members, b_members);
+    }
+
 
 ### Operators
 
@@ -1117,6 +1133,32 @@ Likewise, the inequality operator is typically implemented in terms of `operator
 
 The `<utility>` namespace `std::rel_ops` defines template functions that derive their behavior from `operator==` and `operator<`. This avoids the necessity to declare all six relational operators for every complete type; By defining only `operator==` and `operator<`, and importing this namespace, all six operators will be defined for the type (they will not be selected by argument-dependent lookup when not importing it, though).
 Notice that using this namespace introduces these overloads for all types not defining their own. Still, because non-template functions take precedence over template functions, any of these operators may be defined with a different behavior for a specific type.
+
+In C++11, `operator<` can be implemented easily for a class with many members using `std::tie`:
+
+    struct X {
+        int a = 0;
+        int b = 0;
+        int c = 0;
+    };
+    
+    // Correct but complicated
+    inline bool operator<(Rational& lhs, const Rational& rhs)
+    {
+        if (lhs.a == rhs.a) {
+            if (lhs.b == rhs.b) {
+               return lhs.c < rhs.c;
+            }
+            return lhs.b < rhs.b;
+        }
+        return lhs.a < rhs.a;
+    }
+    
+    // Correct and simple
+    inline bool operator<(Rational& lhs, const Rational& rhs)
+    {
+        return std::tie(lhs.a, lhs.b, lhs.c) < std::tie(rhs.a, rhs.b, rhs.c);
+    }
 
 
 #### Binary arithmetic and bitwise operators
