@@ -345,6 +345,7 @@ The `Function` concept describes a type whose objects can be called over a (poss
         requirement: ResultType<F f, Args args...> == f(args...) (callable with arguments)
         axiom: not_equality_preserving(f(args)) (not required to preserve equality)
 
+
 ##### RegularFunction
 
 The `RegularFunction` concept describes a `Function` that is equality-preserving, i.e. they have predictable and reasonable side-effects:
@@ -386,20 +387,128 @@ A `Relation` can be defined on different types if:
 
 #### Operations
 
-The following function concepts are related to numeric operations. An operation is a `RegularFunction` with a homogenous domain whose result type is convertible to its domain type.
+The following function concepts are related to numeric operations. An operation is a `RegularFunction` with a homogenous domain whose result type is convertible to its domain type. [Stroustrup12](#Stroustrup12) §3.4.2
 
 
 ##### UnaryOperation
 
-The `UnaryOperation` is a `RegularFunction` with one argument with a result type that is `Convertible` to the type of the argument.
+The `UnaryOperation` concept describes a `RegularFunction` with one argument and a result type that is `Convertible` to the type of the argument.
 
 
 ##### BinaryOperation
 
+The `BinaryOperation` concept describes a `RegularFunction` with two arguments that share a `Common` type, and a result type that is `Convertible` to the `Common` type of the argument.
 
-#### Iterator concepts
 
-Iterators are one of the fundamental abstractions of the STL. They generalize the notion of pointers. [Stroustrup12](#Stroustrup12) §3.5
+### Iterator concepts
+
+Iterators are one of the fundamental abstractions of the STL. They generalize the notion of pointers. The iterator design here differs from the one in the C++ standard in that it has more concepts and doesn't include an explicit notation of output iterators. In part this is because of the differentiation between iterators that require equality comparison (those in bounded ranges) and those that do not (those in weak ranges). [Stroustrup12](#Stroustrup12) §3.5
+
+
+#### Iterator properties
+
+Iterator properties deal with reading values from and writing values to iterators. [Stroustrup12](#Stroustrup12) §3.5.1
+
+
+##### Readable
+
+The `Readable` concept defines the basic properties of *input iterators*; it states what it means for a type to be readable.
+
+    requirement: const ValueType<I>& = *i (the type has a value that can be read by dereferencing)
+
+
+##### MoveWritable
+
+The `MoveWritable` concept describes a requirement for moving a value into an iterator's referenced object.
+
+    requirement: *o = move(value)
+    axiom: Readable<Out> && Same<ValueType<Out>, T> => is_valid(*o = move(value)) => eq(value, other) => (*o = move(value), eq(*o, other))
+
+
+##### Writable
+
+The `Writable` concept describes a requirement for writing a value to a dereferenced iterator.
+
+    requirement: *o = value
+    axiom: Readable<Out> && Same<ValueType<Out>, T> => (is_valid(*o = value) => (*o = value, eq(*o, value)))
+
+
+##### IndirectlyMovable
+
+The `IndirectlyMovable` concept describes the move relationship between the values of an input iterator `I` and an output iterator `Out`. For an input iterator `in` and an output iterator `out`,`IndirectlyMovable` requires that `*out = move(*in)`.
+
+
+##### IndirectlyCopyable
+
+The `IndirectlyMovable` concept describes the copy relationship between the values of an input iterator `I` and an output iterator `Out`. For an input iterator `in` and an output iterator `out`, `IndirectlyCopyable` requires that `*out = *in`.
+
+
+#### Incrementable types
+
+All iterators have, as a basic trait, the property that they can be incremented. [Stroustrup12](#Stroustrup12) §3.5.2
+
+
+##### WeaklyIncrementable
+
+The `WeaklyIncrementable` concept describes a `Semiregular` type that can be pre- and post-incremented, and is used in weak input and output ranges where equality comparison and equality preservation are not required.
+
+    Associated types:
+        DistanceType<I>
+        Integral<DistanceType<I>>
+
+    Pre-increment:
+        requires: I& == ++i
+        axiom: (if valid, ++i moves i to the next element)
+            not_equality_preserving(++i)
+            is_valid(++i) => &++i == &i
+
+    Post-increment:
+        requires: i++
+        axiom (if valid, i++ moves i to the next element)
+            not_equality_preserving(i++)
+            is_valid(++i) <=> is_valid(i++)
+
+
+##### Incrementable
+
+The `Incrementable` concept describes a `Regular` type that can be pre- and post-incremented, and where both operations are equality-preserving.
+
+    Associated types:
+        DistanceType<I>
+        Integral<DistanceType<I>>
+
+    Pre-increment:
+        requires: I& == ++i
+        axiom:
+            is_valid(++i) => &++i == &i
+            equality_preserving(++i)
+
+    Post-increment:
+        requires: i++
+        axiom:
+            equality_preserving(i++)
+            is_valid(++i) => (i == j => i++ = j)
+            is_valid(++i) => (i == j => (i++, i) == ++j)
+
+
+#### Iterator abstractions
+
+The following concept describe iterator abstractions. [Stroustrup12](#Stroustrup12) §3.5.3
+
+
+##### WeakInputIterator
+
+
+##### InputIterator
+
+
+##### ForwardIterator
+
+
+##### BidirectionalIterator
+
+
+##### RandomAccessIterator
 
 
 ### Rearrangements
