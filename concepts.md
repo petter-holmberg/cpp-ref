@@ -60,6 +60,8 @@ Concept definitions
 
 The concepts presented in this section are not yet standardized and there may be substantial differences in C++17. The concepts are described in greater detail in [Stroustrup12](#Stroustrup12).
 
+The concept definitions consist of *requirements*, which express syntax and must be checked by the compiler, and *axioms*, which express semantics and must not be checked by the compiler.
+
 
 ### Language concepts
 
@@ -87,14 +89,49 @@ The following concpets describe relationships between types.
 
 ##### Same
 
+The `Same` concept is built-in to the language, described by the standard library type `is_same`. For two types `X` and `Y`, `Same<X, Y>` is true if `X` and `Y` denote exactly the same type after elimination of aliases.
+
+**Example:**
+
+    using Pi = int*;
+    using I = int;
+    Same<Pi, I> // is false
+    Same<Pi, I*> // is true
+
 
 ##### Derived
+
+The `Derived` concept returns true if one type is derived from another.
+
+**Example:**
+
+    class B {};
+    class D : B {};
+    Derived<D, B> // is true: D is derived from B
+    Derived<B, D> // is false: B is a base class of D
+    Derived<B, B> // is true: a class is derived from itself
 
 
 ##### Convertible
 
+The `Convertible` concept expresses the requirement that a type `T` can be implicitly converted to a `U`.
+
+**Example:**
+
+   Convertible<double, int>             // is true: int i = 2.7; (ok)
+   Convertible<double, complex<double>> // is true: complex<double> d = 3.14; (ok)
+   Convertible<complex<double>, double> // is false: double d = complex<double>2,3 (error)
+   Convertible<int, int>                // is true: a type is convertible to itself
+   Convertible<Derived, Base>           // is true: derived types can be converted to base types
+
 
 ##### Common
+
+The `Common` concept expresses that two types `T` and `U` can both be unambiguously converted to a third type `C`, i.e. they share a *common type*. `C` can be the same type as `T` and `U` or it can be a different type:
+
+    requirement: CommonType<T, U> (alias for the standard type trait common_type<T, U>::type)
+    axiom: eq(t1, t2) <=> eq(C{t1}, C{t2})
+    axiom: eq(u1, u2) <=> eq(C{u1}, C{u2})
 
 
 ### Foundational concepts
@@ -107,8 +144,8 @@ Foundational concepts form the basis of a style of programming or are needed to 
 The ability to compare objects for equality is described by the
 `EqualityComparable` concept:
 
-    bool a == b (expression convertible to bool)
-    bool a != b (expression convertible to bool)
+    requirement: bool a == b (expression convertible to bool)
+    requirement: bool a != b (expression convertible to bool)
     axiom: a == b <=> eq(a, b) (specification of equality)
     axiom: (equivalence relation)
         a == a (reflexive)
@@ -130,13 +167,13 @@ where the `eq(a, b)` function implies that `a` and `b` represent the same abstra
     };
     
     inline bool operator==(Rational& lhs, const Rational& rhs)
-    { 
-        return lhs.numerator * rhs.denominator == lhs.denominator * rhs.numerator; 
+    {
+        return lhs.numerator * rhs.denominator == lhs.denominator * rhs.numerator;
     }
-        
+    
     inline bool operator!=(const Rational& lhs, const Rational& rhs)
-    { 
-        return !(lhs == rhs); 
+    {
+        return !(lhs == rhs);
     }
 
 
@@ -147,18 +184,18 @@ The `Semiregular` concept describes types that behave in regular ways except tha
 The `Semiregular` concept is defined as:
 
     Object:
-        T* == &a (an object of this type can have its address taken and the result is a pointer to T)
+        requirement: T* == &a (an object of this type can have its address taken and the result is a pointer to T)
         axiom: &a == addressof(a) (the result is an address to a)
         axiom: eq(a, a) (non-volatility)
     
     Destructible:
-        a.~T() (destruction)
-        noexcept(a.~T()) (noexcept)
+        requirement: a.~T() (destruction)
+        requirement: noexcept(a.~T()) (noexcept)
     
     Initialization:
-        T{} (default construction)
-        T{a} (copy construction)
-        T& == {a = b} (copy assignment)
+        requirement: T{} (default construction)
+        requirement: T{a} (copy construction)
+        requirement: T& == {a = b} (copy assignment)
         axiom: (copy semantics)
             eq(T{a}, a)
             eq(a = b, b)
@@ -167,10 +204,10 @@ The `Semiregular` concept is defined as:
             eq(b, c) => eq(a = move(b), c)
     
     Allocation:
-        T* == { new T }
-        delete new T
-        T* == { new T[n] }
-        delete[] new T[n]
+        requirement: T* == { new T }
+        requirement: delete new T
+        requirement: T* == { new T[n] }
+        requirement: delete[] new T[n]
 
 Note that copy semantics do not preclude shallow copies. If they did, we might not be able to conclude that pointers are copyable. Shallow-copied types may be regular with respect to copy and move semantics, but they probably have some operations that are not equality preserving. This is definitely the case with some `InputIterator`s such as `istream_iterator`.
 
@@ -191,10 +228,10 @@ The `Regular` concept is the union of the `Semiregular` and `EqualityComparable`
 
 The `TotallyOrdered` concept requires The `EqualityComparable` concept plus the the inequality operators `<`, `>`, `<=`, and `>=`, with the following requirements: [Stroustrup12](#Stroustrup12) §3.3
 
-    bool a < b
-    bool a > b
-    bool a <= b
-    bool a >= b
+    requirement: bool a < b
+    requirement: bool a > b
+    requirement: bool a <= b
+    requirement: bool a >= b
     axiom: (total ordering using <)
         !(a < a) (irreflexive)
         a < b => !(b < a) (assymetric)
@@ -215,39 +252,39 @@ The `TotallyOrdered` concept requires The `EqualityComparable` concept plus the 
     
     inline bool operator==(Rational& lhs, const Rational& rhs)
     {
-        return lhs.numerator * rhs.denominator == lhs.denominator * rhs.numerator; 
+        return lhs.numerator * rhs.denominator == lhs.denominator * rhs.numerator;
     }
     
     inline bool operator!=(const Rational& lhs, const Rational& rhs)
     {
-        return !(lhs == rhs); 
+        return !(lhs == rhs);
     }
     
-    inline bool operator<(Rational& lhs, const Rational& rhs) 
+    inline bool operator<(Rational& lhs, const Rational& rhs)
     {
-        return lhs.numerator * rhs.denominator < lhs.denominator * rhs.numerator; 
+        return lhs.numerator * rhs.denominator < lhs.denominator * rhs.numerator;
     }
     
-    inline bool operator>(const Rational& lhs, const Rational& rhs) 
+    inline bool operator>(const Rational& lhs, const Rational& rhs)
     {
         return rhs < lhs;
     }
     
     inline bool operator<=(const Rational& lhs, const Rational& rhs)
     {
-        return !(lhs > rhs); 
+        return !(lhs > rhs);
     }
     
     inline bool operator>=(const Rational& lhs, const Rational& rhs)
     {
-        return !(lhs < rhs); 
+        return !(lhs < rhs);
     }
 
 
 ### Function concepts
 
 Function concepts describe requirements on function types. [Stroustrup12](#Stroustrup12) §3.4
- 
+
 
 ### Iterator concepts
 
