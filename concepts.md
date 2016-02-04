@@ -364,7 +364,7 @@ The `Predicate` concept describes a `RegularFunction` whose return type is `Conv
 
 ##### Relation
 
-The `Relation` concepts describes a binary `Predicate`.
+The `Relation` concept describes a binary `Predicate`.
 
 The STL is concerned with two types of relations: *equivalence relations*, which generalize equality, and *strict weak orderings*, which generalize total orderings. In C++ these properties can only be defined for particular objects, not types, since there can be many functions with type `bool(T, T)` that are neither equivalence relations nor strict weak orderings.
 
