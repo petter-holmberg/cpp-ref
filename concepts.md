@@ -70,16 +70,42 @@ Language concepts are intrinsic to the C++ programming language. [Stroustrup12](
 
 #### Type classifications
 
-The following concepts classify fundamental types.
+The following concepts classify fundamental types. Their semantics are fully described in the C++ standard, using type traits.
 
 
 ##### Integral
 
+Starting with C++11, the `Integral` concept is defined by `is_integral<T>::value`.
+
+**Example:**
+
+    Integral<int>          // is true
+    Integral<unsigned int> // is true
+    Integral<double>       // is false
+
 
 ##### SignedIntegral
 
+Starting with C++11, the `SignedIntegral` concept is defined by `is_signed<T>::value`.
+
+**Example:**
+
+    SignedIntegral<int>          // is true
+    SignedIntegral<signed int>   // is true
+    SignedIntegral<unsigned int> // is false
+    SignedIntegral<double>       // is true
+
 
 ##### UnsignedIntegral
+
+Starting with C++11, the `UnsignedIntegral` concept is defined by `is_unsigned<T>::value`.
+
+**Example:**
+
+    Integral<int>          // is true
+    Integral<signed int>   // is true
+    Integral<unsigned int> // is false
+    Integral<double>       // is true
 
 
 #### Type relations
@@ -118,11 +144,11 @@ The `Convertible` concept expresses the requirement that a type `T` can be impli
 
 **Example:**
 
-   Convertible<double, int>             // is true: int i = 2.7; (ok)
-   Convertible<double, complex<double>> // is true: complex<double> d = 3.14; (ok)
-   Convertible<complex<double>, double> // is false: double d = complex<double>2,3 (error)
-   Convertible<int, int>                // is true: a type is convertible to itself
-   Convertible<Derived, Base>           // is true: derived types can be converted to base types
+    Convertible<double, int>             // is true: int i = 2.7; (ok)
+    Convertible<double, complex<double>> // is true: complex<double> d = 3.14; (ok)
+    Convertible<complex<double>, double> // is false: double d = complex<double>2,3 (error)
+    Convertible<int, int>                // is true: a type is convertible to itself
+    Convertible<Derived, Base>           // is true: derived types can be converted to base types
 
 
 ##### Common
@@ -132,6 +158,13 @@ The `Common` concept expresses that two types `T` and `U` can both be unambiguou
     requirement: CommonType<T, U> (alias for the standard type trait common_type<T, U>::type)
     axiom: eq(t1, t2) <=> eq(C{t1}, C{t2})
     axiom: eq(u1, u2) <=> eq(C{u1}, C{u2})
+
+**Example:**
+
+    Common<int, double>           // is true
+    Common<int, int>              // is true
+    Common<char*, std::string>    // is true
+    Common<employee, std::string> // is probably false
 
 
 ### Foundational concepts
