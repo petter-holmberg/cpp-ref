@@ -93,7 +93,7 @@ Starting with C++11, the `SignedIntegral` concept is defined by `is_signed<T>::v
     SignedIntegral<int>          // is true
     SignedIntegral<signed int>   // is true
     SignedIntegral<unsigned int> // is false
-    SignedIntegral<double>       // is true
+    SignedIntegral<double>       // is true (note: an error in [Stroustrup12](#Stroustrup12)?)
 
 
 ##### UnsignedIntegral
@@ -102,10 +102,10 @@ Starting with C++11, the `UnsignedIntegral` concept is defined by `is_unsigned<T
 
 **Example:**
 
-    Integral<int>          // is true
-    Integral<signed int>   // is true
-    Integral<unsigned int> // is false
-    Integral<double>       // is true
+    UnsignedIntegral<int>          // is false
+    UnsignedIntegral<signed int>   // is faĺse
+    UnsignedIntegral<unsigned int> // is true
+    UnsignedIntegral<double>       // is false
 
 
 #### Type relations
@@ -319,7 +319,85 @@ The `TotallyOrdered` concept requires The `EqualityComparable` concept plus the 
 Function concepts describe requirements on function types. [Stroustrup12](#Stroustrup12) §3.4
 
 
-### Iterator concepts
+##### Function
+
+The `Function` concept describes a type whose objects can be called over a (possibly empty) sequence of arguments. `Function`s are not `Semiregular` types; they may not exhibit the full range of capabilities as built-in value types. Minimally, they can be expected to be copy- and move-constructible but not copy- and move-assignable:
+
+    Object:
+        requirement: T* == &a (an object of this type can have its address taken and the result is a pointer to T)
+        axiom: &a == addressof(a) (the result is an address to a)
+        axiom: eq(a, a) (non-volatility)
+
+    Destructible:
+        requirement: a.~T() (destruction)
+        requirement: noexcept(a.~T()) (noexcept)
+
+    Initialization:
+        requirement: T{a} (copy construction)
+        axiom: eq(T{a}, a) (copy construction semantics)
+        axiom: eq(a, b) => eq(T{move(a)}, b) (move construction semantics)
+
+    Allocation:
+        requirement: T* == { new T }
+        requirement: delete new T
+
+    Callable:
+        requirement: ResultType<F f, Args args...> == f(args...) (callable with arguments)
+        axiom: not_equality_preserving(f(args)) (not required to preserve equality)
+
+##### RegularFunction
+
+The `RegularFunction` concept describes a `Function` that is equality-preserving, i.e. they have predictable and reasonable side-effects:
+
+    Function<F, Args...>
+    axiom: equality_preserving(f(args))
+
+
+##### Predicate
+
+The `Predicate` concept describes a `RegularFunction` whose return type is `Convertible` to bool:
+
+    RegularFunction<P, Args...>
+    Convertible<ResultType<P, Args...>, bool>
+
+
+##### Relation
+
+The `Relation` concepts describes a binary `Predicate`.
+
+The STL is concerned with two types of relations: *equivalence relations*, which generalize equality, and *strict weak orderings*, which generalize total orderings. In C++ these properties can only be defined for particular objects, not types, since there can be many functions with type `bool(T, T)` that are neither equivalence relations nor strict weak orderings.
+
+A `Relation` can be defined on different types if:
+
+- `T1` and `T2` share a common type `C`
+- The relation `R` is defined for all combinations of those types
+- Any invocation of `r` on any combinations of types `T1`, `T2`, and `C` is equivalent to an invocation `r(C{t1}, C{t2})`
+
+    Relation<R, T1>
+    Relation<R, T2>
+    Common<T1, T2>
+    Relation<R, CommonType<T1, T2>>
+    requirement: bool r(t1, t2)
+    requirement: bool r(t2, t1)
+    axiom:
+        r(t1, t2) <=> r(C{t1}, C{t2})
+        r(t2, t1) <=> r(C{t2}, C{t1})
+
+
+#### Operations
+
+The following function concepts are related to numeric operations. An operation is a `RegularFunction` with a homogenous domain whose result type is convertible to its domain type.
+
+
+##### UnaryOperation
+
+The `UnaryOperation` is a `RegularFunction` with one argument with a result type that is `Convertible` to the type of the argument.
+
+
+##### BinaryOperation
+
+
+#### Iterator concepts
 
 Iterators are one of the fundamental abstractions of the STL. They generalize the notion of pointers. [Stroustrup12](#Stroustrup12) §3.5
 
