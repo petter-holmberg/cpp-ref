@@ -374,6 +374,7 @@ A `Relation` can be defined on different types if:
 - The relation `R` is defined for all combinations of those types
 - Any invocation of `r` on any combinations of types `T1`, `T2`, and `C` is equivalent to an invocation `r(C{t1}, C{t2})`
 
+
     Relation<R, T1>
     Relation<R, T2>
     Common<T1, T2>
@@ -484,7 +485,7 @@ The `Incrementable` concept describes a `Regular` type that can be pre- and post
             equality_preserving(++i)
 
     Post-increment:
-        requires: i++
+        requires: I = i++
         axiom:
             equality_preserving(i++)
             is_valid(++i) => (i == j => i++ = j)
@@ -498,17 +499,86 @@ The following concept describe iterator abstractions. [Stroustrup12](#Stroustrup
 
 ##### WeakInputIterator
 
+The `WeakInputIterator` concept describes a `WeaklyIncrementable` and `Readable` type. It is used in weak ranges, which do not require the iterators to be `EqualityComparable`.
+
+    requires: IteratorCategory<I>
+    requires: Derived<IteratorCategory<I>, weak_input_iterator_tag>
+    Readable<decltype(i++)> (dereferencing of post-increment result)
+
 
 ##### InputIterator
+
+The `InputIterator` concept describes a `WeakInputIterator` that is `EqualityComparable`. It does not require that increment is an equality-preserving operation, meaning that a range can only be traversed once.
 
 
 ##### ForwardIterator
 
+The `ForwardIterator` concept describes an `InputIterator` that is `Incrementable`. Because its increment operation is equality-preserving, it permits multiple passes over a range.
+
 
 ##### BidirectionalIterator
 
+The `BidirectionalIterator` concept describes a `ForwardIterator` that supports the decrement operation. It abstracts the traversal of doubly linked lists.
+
+   
+    Pre-decrement:
+        requires: I& == --i
+        axiom: (if valid, --i moves i to the previous element)
+            is_valid(--i) => &--i == &i
+
+    Post-decrement:
+        requires: I == i--
+        axiom:
+            is_valid(++i) <=> (is_valid(--(++i)) && (i == j => --(++i) == j))
+            is_valid(--i) <=> (is_valid(++(--i)) && (i == j => ++(--i) == j))
+
+    Increment-decrement:
+        axiom:
+            is_valid(++i) => (is_valid(--(++i)) && (i == j => --(++i) == j))
+            is_valid(--i) => (is_valid(++(--i)) && (i == j => ++(--i) == j))
+
 
 ##### RandomAccessIterator
+
+The `RandomAccessIterator` concept describes a `BidirectionalIterator` that is also `TotallyOrdered`. It allows constance advancement some number of steps in either direction. The distance between `RandomAccessIterator`s can also be computed in constant time by subtracting two values.
+
+    Difference:
+        requires: DifferenceType<I> == i - j
+        SignedIntegral<DifferenceType>
+        Convertible<DistanceType, DifferenceType>
+        axiom:
+            is_valid(distance(i, j)) <=> is_valid(i - j) && is_valid(j - i)
+            is_valid(i – j) => (i – j) >= 0 => i – j == distance(i, j)
+            is_valid(i – j) => (i – j) < 0 => i – j == –distance(i, j)
+    
+    Advance:
+        Addition:
+            requires: I& == i += n
+            requires: I == i + n
+            requires: I == n + i
+            axiom:
+                is_valid(advance(i, n) <=> is_valid(i += n)
+                is_valid(i += n) => i += n == (advance(i, n), i)
+                is_valid(i += n) => &(i += n) == &i
+                is_valid(i += n) => i + n == (i += n)
+            axiom: is_valid(i + n) => i + n == n + i (commutativity of pointer addition)
+            axiom: is_valid(i + (n + n)) => i + (n + n) == (i + n) + n (associativity of pointer addition)
+            axiom: (Peano-like pointer addition)
+                i + 0 == i
+                is_valid(i + n) => i + n == ++(i + (n – 1))
+                is_valid(++i) => (i == j => ++i != j)
+
+        Subtraction:
+            requires: I& == i –= n
+            requires: I == i – n
+            axiom: is_valid(i += –n) <=> is_valid(i –= n)
+            axiom: is_valid(i –= n) => (i –= n) == (i += –n)
+            axiom: is_valid(i –= n) => &(i –= n) == &i
+            axiom: is_valid(i –= n) => (i – n) == (i –= n)
+
+        Subscript:
+            requires: ValueType<I> = i[n]
+            axiom: is_valid(i + n) && is_valid(*(i + n)) => i[n] == *(i + n)
 
 
 ### Rearrangements
