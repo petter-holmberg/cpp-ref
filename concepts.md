@@ -55,6 +55,41 @@ Multi-type constraints can easily be expressed using explicit form with conjunct
     Iterator_type<S> find(S&& sequence, const T& value);
 
 
+Concept description mechanisms
+------------------------------
+
+Before (and to some extent after) C++17, Several mechanisms dealing with types are needed to describe concepts: [Stepanov09](#Stepanov09) §1.7
+
+- Type attributes
+- Type functions
+- Type constructors
+
+
+### Type attributes
+
+A *type attribute* is a mapping from a type to a value describing some characteristic of the type. Examples of type attributes in C++ are the built-in type attribute `sizeof(T)`, the alignment of an object of a type, and the number of members in a `struct`.
+
+
+### Type functions
+
+A *type function* is a mapping from a type to an affiliated type. Examples of type functions is a function that given a `*T`, returns the type `T`. In C++, type functions are implemented by *traits classes*, specialized for each particular type where necessary.
+
+**Example:**
+
+    template<typename T>
+    struct value_type {
+        typedef T type;
+    };
+    
+    // Convenience notation
+    #define ValueType(T) typename value_type<T>::type
+
+
+### Type constructors
+
+A type constructor is a mechanism for creating a new type from one or more existing types. Examples of type constructors in C++ are the `*` (pointer) operator, `struct`, which is a n-ary type constructor, and `std::pair`, which returns a structure of two members.
+
+
 Concept definitions
 -------------------
 
@@ -327,20 +362,20 @@ The `Function` concept describes a type whose objects can be called over a (poss
         requirement: T* == &a (an object of this type can have its address taken and the result is a pointer to T)
         axiom: &a == addressof(a) (the result is an address to a)
         axiom: eq(a, a) (non-volatility)
-
+    
     Destructible:
         requirement: a.~T() (destruction)
         requirement: noexcept(a.~T()) (noexcept)
-
+    
     Initialization:
         requirement: T{a} (copy construction)
         axiom: eq(T{a}, a) (copy construction semantics)
         axiom: eq(a, b) => eq(T{move(a)}, b) (move construction semantics)
-
+    
     Allocation:
         requirement: T* == { new T }
         requirement: delete new T
-
+    
     Callable:
         requirement: ResultType<F f, Args args...> == f(args...) (callable with arguments)
         axiom: not_equality_preserving(f(args)) (not required to preserve equality)
@@ -368,13 +403,6 @@ The `Relation` concept describes a binary `Predicate`.
 
 The STL is concerned with two types of relations: *equivalence relations*, which generalize equality, and *strict weak orderings*, which generalize total orderings. In C++ these properties can only be defined for particular objects, not types, since there can be many functions with type `bool(T, T)` that are neither equivalence relations nor strict weak orderings.
 
-A `Relation` can be defined on different types if:
-
-- `T1` and `T2` share a common type `C`
-- The relation `R` is defined for all combinations of those types
-- Any invocation of `r` on any combinations of types `T1`, `T2`, and `C` is equivalent to an invocation `r(C{t1}, C{t2})`
-
-
     Relation<R, T1>
     Relation<R, T2>
     Common<T1, T2>
@@ -385,6 +413,11 @@ A `Relation` can be defined on different types if:
         r(t1, t2) <=> r(C{t1}, C{t2})
         r(t2, t1) <=> r(C{t2}, C{t1})
 
+In summary, a `Relation` can be defined on different types if:
+
+- `T1` and `T2` share a common type `C`
+- The relation `R` is defined for all combinations of those types
+- Any invocation of `r` on any combinations of types `T1`, `T2`, and `C` is equivalent to an invocation `r(C{t1}, C{t2})`
 
 #### Operations
 
@@ -456,13 +489,13 @@ The `WeaklyIncrementable` concept describes a `Semiregular` type that can be pre
     Associated types:
         DistanceType<I>
         Integral<DistanceType<I>>
-
+    
     Pre-increment:
         requires: I& == ++i
         axiom: (if valid, ++i moves i to the next element)
             not_equality_preserving(++i)
             is_valid(++i) => &++i == &i
-
+    
     Post-increment:
         requires: i++
         axiom (if valid, i++ moves i to the next element)
@@ -525,13 +558,13 @@ The `BidirectionalIterator` concept describes a `ForwardIterator` that supports 
         requires: I& == --i
         axiom: (if valid, --i moves i to the previous element)
             is_valid(--i) => &--i == &i
-
+    
     Post-decrement:
         requires: I == i--
         axiom:
             is_valid(++i) <=> (is_valid(--(++i)) && (i == j => --(++i) == j))
             is_valid(--i) <=> (is_valid(++(--i)) && (i == j => ++(--i) == j))
-
+    
     Increment-decrement:
         axiom:
             is_valid(++i) => (is_valid(--(++i)) && (i == j => --(++i) == j))
@@ -567,7 +600,7 @@ The `RandomAccessIterator` concept describes a `BidirectionalIterator` that is a
                 i + 0 == i
                 is_valid(i + n) => i + n == ++(i + (n – 1))
                 is_valid(++i) => (i == j => ++i != j)
-
+    
         Subtraction:
             requires: I& == i –= n
             requires: I == i – n
@@ -575,7 +608,7 @@ The `RandomAccessIterator` concept describes a `BidirectionalIterator` that is a
             axiom: is_valid(i –= n) => (i –= n) == (i += –n)
             axiom: is_valid(i –= n) => &(i –= n) == &i
             axiom: is_valid(i –= n) => (i – n) == (i –= n)
-
+    
         Subscript:
             requires: ValueType<I> = i[n]
             axiom: is_valid(i + n) && is_valid(*(i + n)) => i[n] == *(i + n)
@@ -604,15 +637,19 @@ The `Sortable` concept describes the requirements of algorithms that permute seq
 References
 ----------
 
-<a name="Stroustrup12"></a>
-[Stroustrup12]
-"A concept design for the STL", ISO N3551
-http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2012/n3351.pdf
-
 <a name="Sutton13"></a>
 [Sutton13]
 "Concepts Lite: Constraining Templates with Predicates", ISO N3551
 http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2013/n3580.pdf
+
+<a name="Stepanov09"></a>
+[Stepanov09]
+"Elements of Programming", ISBN 0-321-63537-X
+
+<a name="Stroustrup12"></a>
+[Stroustrup12]
+"A concept design for the STL", ISO N3551
+http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2012/n3351.pdf
 
 <a name="ISO15"></a>
 [ISO15]
