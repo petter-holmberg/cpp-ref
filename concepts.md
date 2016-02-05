@@ -586,6 +586,21 @@ The `RandomAccessIterator` concept describes a `BidirectionalIterator` that is a
 Rearrangements group together iterator requirements of algorithm families. [Stroustrup12](#Stroustrup12) §3.6
 
 
+##### Permutable
+
+The `Permutable` concept describes a requirement for permuting or rearranging the elements of an iterator range. It requires a `Semiregular` value type and `IndirectlyMovable` `ForwardIterators`.
+
+
+##### Mergeable
+
+The `Mergeable` concept describes the requirements of algorithms that merge sorted sequences into an output sequence. It requires a `Permutable` iterator range and a `TotallyOrdered` or a *strict weak order* `Relation` between value types.
+
+
+##### Sortable
+
+The `Sortable` concept describes the requirements of algorithms that permute sequences of iterators into an ordered sequence. It requires a `ForwardIterator` and a `TotallyOrdered` or a *strict weak order* `Relation` between value types.
+
+
 References
 ----------
 
