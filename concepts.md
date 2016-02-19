@@ -154,7 +154,7 @@ The `Integral` concept is defined by the type trait `is_integral<T>::value`.
         return is_integral<T>::value;
     }
 
-*Example:**
+**Example:**
 
     Integral<int>          // is true
     Integral<unsigned int> // is true
