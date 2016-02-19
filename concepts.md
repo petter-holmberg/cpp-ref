@@ -87,20 +87,55 @@ A *type function* is a mapping from a type to an affiliated type. Examples of ty
 
 ### Type constructors
 
-A type constructor is a mechanism for creating a new type from one or more existing types. Examples of type constructors in C++ are the `*` (pointer) operator, `struct`, which is a n-ary type constructor, and `std::pair`, which returns a structure of two members.
+A *type constructor* is a mechanism for creating a new type from one or more existing types. Examples of type constructors in C++ are the `*` (pointer) operator, `struct`, which is a n-ary type constructor, and `std::pair`, which returns a structure of two members.
 
 
 Concept definitions
 -------------------
 
-The concepts presented in this section are not yet standardized and there may be substantial differences in C++17. The concepts are described in greater detail in [Stroustrup12](#Stroustrup12).
+The concepts presented in this section are not yet standardized and there may be substantial differences in C++17. The concepts are described in greater detail in [Stroustrup12](#Stroustrup12), and some concept definitions are taken from [Niebler15](#Niebler15).
 
 The concept definitions consist of *requirements*, which express syntax and must be checked by the compiler, and *axioms*, which express semantics and must not be checked by the compiler.
 
 
 ### Language concepts
 
-Language concepts are intrinsic to the C++ programming language. [Stroustrup12](#Stroustrup12) §3.2
+Language concepts are intrinsic to the C++ programming language. [Stroustrup12](#Stroustrup12) §3.2, [Niebler15](#Niebler15) §19.2
+
+
+##### Assignable
+
+**C++ Defintion:**
+
+    template <class T, class U>
+    concept bool Assignable() {
+        return Common<T, U>() && requires(T&& a, U&& b) {
+            { std::forward<T>(a) = std::forward<U>(b) } -> Same<T&>;
+        };
+    }
+
+
+##### Swappable
+
+**C++ Defintion:**
+
+    template <class T>
+    concept bool Swappable() {
+        return requires(T&& a, T&& b) {
+            ranges::swap(std::forward<T>(a), std::forward<T>(b));
+        };
+    }
+    
+    template <class T, class U>
+    concept bool Swappable() {
+        return Swappable<T>() &&
+            Swappable<U>() &&
+            Common<T, U>() &&
+            requires(T&& t, U&& u) {
+                ranges::swap(std::forward<T>(t), std::forward<U>(u));
+                ranges::swap(std::forward<U>(u), std::forward<T>(t));
+            };
+    }
 
 
 #### Type classifications
@@ -110,9 +145,16 @@ The following concepts classify fundamental types. Their semantics are fully des
 
 ##### Integral
 
-Starting with C++11, the `Integral` concept is defined by `is_integral<T>::value`.
+The `Integral` concept is defined by the type trait `is_integral<T>::value`.
 
-**Example:**
+**C++ definition:**
+
+    template <class T>
+    concept bool Integral() {
+        return is_integral<T>::value;
+    }
+
+*Example:**
 
     Integral<int>          // is true
     Integral<unsigned int> // is true
@@ -121,19 +163,33 @@ Starting with C++11, the `Integral` concept is defined by `is_integral<T>::value
 
 ##### SignedIntegral
 
-Starting with C++11, the `SignedIntegral` concept is defined by `is_signed<T>::value`.
+The `SignedIntegral` concept adds the `is_signed<T>::value` requirement.
+
+**C++ definition:**
+
+    template <class T>
+    concept bool SignedIntegral() {
+        return Integral<T>() && is_signed<T>::value;
+    }
 
 **Example:**
 
     SignedIntegral<int>          // is true
     SignedIntegral<signed int>   // is true
     SignedIntegral<unsigned int> // is false
-    SignedIntegral<double>       // is true (note: an error in [Stroustrup12](#Stroustrup12)?)
+    SignedIntegral<double>       // is true
 
 
 ##### UnsignedIntegral
 
-Starting with C++11, the `UnsignedIntegral` concept is defined by `is_unsigned<T>::value`.
+The `UnsignedIntegral` concept is defined in terms of the `Integral` and `SignedIntegral` concept.
+
+**C++ definition:**
+
+    template <class T>
+    concept bool UnsignedIntegral() {
+        return Integral<T>() && !SignedIntegral<T>();
+    }
 
 **Example:**
 
@@ -150,7 +206,7 @@ The following concpets describe relationships between types.
 
 ##### Same
 
-The `Same` concept is built-in to the language, described by the standard library type `is_same`. For two types `X` and `Y`, `Same<X, Y>` is true if `X` and `Y` denote exactly the same type after elimination of aliases.
+The `Same` concept is built-in to the language, described by the standard library type `is_same`. For two types `T` and `U`, `Same<T, U>` is true iff `T` and `U` denote exactly the same type after elimination of aliases. For the purposes of constraint checking, `Same<T, U>()` implies `Same<U, T>`.
 
 **Example:**
 
@@ -160,30 +216,30 @@ The `Same` concept is built-in to the language, described by the standard librar
     Same<Pi, I*> // is true
 
 
-##### Derived
+##### DerivedFrom
 
-The `Derived` concept returns true if one type is derived from another.
+The `DerivedFrom` concept returns true if one type is derived from another.
 
 **Example:**
 
     class B {};
     class D : B {};
-    Derived<D, B> // is true: D is derived from B
-    Derived<B, D> // is false: B is a base class of D
-    Derived<B, B> // is true: a class is derived from itself
+    DerivedFrom<D, B> // is true: D is derived from B
+    DerivedFrom<B, D> // is false: B is a base class of D
+    DerivedFrom<B, B> // is true: a class is derived from itself
 
 
-##### Convertible
+##### ConvertibleTo
 
-The `Convertible` concept expresses the requirement that a type `T` can be implicitly converted to a `U`.
+The `ConvertibleTo` concept expresses the requirement that a type `T` can be implicitly converted to a `U`.
 
 **Example:**
 
-    Convertible<double, int>             // is true: int i = 2.7; (ok)
-    Convertible<double, complex<double>> // is true: complex<double> d = 3.14; (ok)
-    Convertible<complex<double>, double> // is false: double d = complex<double>2,3 (error)
-    Convertible<int, int>                // is true: a type is convertible to itself
-    Convertible<Derived, Base>           // is true: derived types can be converted to base types
+    ConvertibleTo<double, int>             // is true: int i = 2.7; (ok)
+    ConvertibleTo<double, complex<double>> // is true: complex<double> d = 3.14; (ok)
+    ConvertibleTo<complex<double>, double> // is false: double d = complex<double>2,3 (error)
+    ConvertibleTo<int, int>                // is true: a type is convertible to itself
+    ConvertibleTo<Derived, Base>           // is true: derived types can be converted to base types
 
 
 ##### Common
@@ -193,6 +249,21 @@ The `Common` concept expresses that two types `T` and `U` can both be unambiguou
     requirement: CommonType<T, U> (alias for the standard type trait common_type<T, U>::type)
     axiom: eq(t1, t2) <=> eq(C{t1}, C{t2})
     axiom: eq(u1, u2) <=> eq(C{u1}, C{u2})
+
+**C++ definition:**
+
+    template <class T, class U>
+    concept bool Common() {
+        return requires (T t, U u) {
+            typename common_type_t<T, U>;
+            typename common_type_t<U, T>;
+            requires Same<common_type_t<U, T>, common_type_t<T, U>>();
+            common_type_t<T, U>(std::forward<T>(t));
+            common_type_t<T, U>(std::forward<U>(u));
+        };
+    }
+
+Users are free to specialize `common_type` when at least one parameter is a user-defined type. Those specializations are considered by the `Common` concept.
 
 **Example:**
 
@@ -205,6 +276,137 @@ The `Common` concept expresses that two types `T` and `U` can both be unambiguou
 ### Foundational concepts
 
 Foundational concepts form the basis of a style of programming or are needed to write programs in that style. The following concepts describe the basis of the value-oriented programming style on which the STL is based. [Stroustrup12](#Stroustrup12) §3.3
+
+
+##### Destructible
+
+**C++ definition:**
+
+    template <class T>
+    concept bool Destructible() {
+        return requires (T t, const T ct, T* p) {
+            { t.∼T() } noexcept;
+            { &t } -> Same<T*>; // not required to be equality preserving
+            { &ct } -> Same<const T*>; // not required to be equality preserving
+            delete p;
+            delete[] p;
+        };
+    }
+
+
+##### Constructible
+
+**C++ definition:**
+
+    template <class T, class ...Args>
+    concept bool __ConstructibleObject = // exposition only
+        Destructible<T>() && requires (Args&& ...args) {
+            T{std::forward<Args>(args)...}; // not required to be equality preserving
+            new T{std::forward<Args>(args)...}; // not required to be equality preserving
+        };
+    
+    template <class T, class ...Args>
+    concept bool __BindableReference = // exposition only
+        is_reference<T>::value && requires (Args&& ...args) {
+            T(std::forward<Args>(args)...);
+        };
+    
+    template <class T, class ...Args>
+    concept bool Constructible() {
+        return __ConstructibleObject<T, Args...> || __BindableReference<T, Args...>;
+    }
+
+
+##### DefaultConstructible
+
+**C++ definition:**
+
+    template <class T>
+    concept bool DefaultConstructible() {
+        return Constructible<T>() &&
+            requires (const size_t n) {
+                new T[n]{}; // not required to be equality preserving
+            };
+    }
+
+
+##### MoveConstructible
+
+**C++ definition:**
+
+    template <class T>
+    concept bool MoveConstructible() {
+        return Constructible<T, remove_cv_t<T>&&>() && 
+            Convertible<remove_cv_t<T>&&, T>();
+    }
+
+
+##### CopyConstructible
+
+**C++ definition:**
+
+    template <class T>
+    concept bool CopyConstructible() {
+        return MoveConstructible<T>() &&
+            Constructible<T, const remove_cv_t<T>&>() &&
+            Convertible<remove_cv_t<T>&, T>() &&
+            Convertible<const remove_cv_t<T>&, T>() &&
+            Convertible<const remove_cv_t<T>&&, T>();
+    }
+
+
+##### Movable
+
+**C++ definition:**
+
+    template <class T>
+    concept bool Movable() {
+        return MoveConstructible<T>() &&
+            Assignable<T&, T&&>() &&
+            Swappable<T&>();
+    }
+
+
+##### Copyable
+
+**C++ definition:**
+
+    template <class T>
+    concept bool Copyable() {
+        return CopyConstructible<T>() &&
+        Movable<T>() &&
+        Assignable<T&, const T&>();
+    }
+
+
+##### Boolean
+
+The `Boolean` concept describes the requirements on a type that is used in Boolean contexts.
+
+**C++ definition:**
+
+    template <class B>
+    concept bool Boolean() {
+        return MoveConstructible<B>() &&
+            requires(const B b1, const B b2, const bool a) {
+                bool(b1);
+                { b1 } -> bool;
+                bool(!b1);
+                { !b1 } -> bool;
+                { b1 && b2 } -> Same<bool>;
+                { b1 && a } -> Same<bool>;
+                { a && b1 } -> Same<bool>;
+                { b1 || b2 } -> Same<bool>;
+                { b1 || a } -> Same<bool>;
+                { a || b1 } -> Same<bool>;
+                { b1 == b2 } -> bool;
+                { b1 != b2 } -> bool;
+                { b1 == a } -> bool;
+                { a == b1 } -> bool;
+                { b1 != a } -> bool;
+                { a != b1 } -> bool;
+            };
+    }
 
 
 ##### EqualityComparable
@@ -226,6 +428,41 @@ where the `eq(a, b)` function implies that `a` and `b` represent the same abstra
 - Two tuples are equal if and only if they have the same number of sub-objects and all of their sub-objects compare equal using `==`.
 - Two vectors are equal if and only if they have the same size and contain the same elements as if compared using the `equal` algorithm (which compares using `==`.
 - Two complex numbers are equal if and only if they have equal real and imaginary components.
+
+Let `t` and `u` be objects of types `T` and `U`. `WeaklyEqualityComparable<T, U>()` is satisfied iff:
+
+- `t == u`, `u == t`, `t != u`, and `u != t` have the same domain.
+- `bool(u == t) == bool(t == u)`.
+- `bool(t != u) == !bool(t == u)`.
+- `bool(u != t) == bool(t != u)`.
+
+**C++ definition:**
+
+    template <class T, class U>
+    concept bool WeaklyEqualityComparable() {
+        return requires(const T t, const U u) {
+            { t == u } -> Boolean;
+            { u == t } -> Boolean;
+            { t != u } -> Boolean;
+            { u != t } -> Boolean;
+        };
+    }
+    
+    template <class T>
+    concept bool EqualityComparable() {
+        returnWeaklyEqualityComparable<T, T>();
+    }
+    
+    template <class T, class U>
+    concept bool EqualityComparable() {
+        return Common<T, U>() &&
+            EqualityComparable<T>() &&
+            EqualityComparable<U>() &&
+            EqualityComparable<common_type_t<T, U>>() &&
+            WeaklyEqualityComparable<T, U>();
+    }
+
+The distinction between `EqualityComparable<T, U>()` and `WeaklyEqualityComparable<T, U>()` is purely semantic.
 
 **Example implementation:**
 
@@ -286,15 +523,31 @@ Proper use of the `Semiregular` concept requires that it is evaluated over value
 - Reference types types are not `Semiregular` because the syntax used for copy construction does not actually create a copy; it binds a reference to an
 object.
 
+**C++ definition:**
+
+    template <class T>
+    concept bool Semiregular() {
+        return Copyable<T>() &&
+        DefaultConstructible<T>();
+    }
+
 
 ##### Regular
 
 The `Regular` concept is the union of the `Semiregular` and `EqualityComparable` concepts. [Stroustrup12](#Stroustrup12) §3.3
 
+**C++ definition:**
 
-##### TotallyOrdered
+    template <class T>
+    concept bool Regular() {
+        return Semiregular<T>() &&
+        EqualityComparable<T>();
+    }
 
-The `TotallyOrdered` concept requires The `EqualityComparable` concept plus the the inequality operators `<`, `>`, `<=`, and `>=`, with the following requirements: [Stroustrup12](#Stroustrup12) §3.3
+
+##### StrictTotallyOrdered
+
+The `StrictTotallyOrdered` concept requires The `EqualityComparable` concept plus the the inequality operators `<`, `>`, `<=`, and `>=`, with the following requirements: [Stroustrup12](#Stroustrup12) §3.3
 
     requirement: bool a < b
     requirement: bool a > b
@@ -309,6 +562,38 @@ The `TotallyOrdered` concept requires The `EqualityComparable` concept plus the 
         a > b <=> b < a
         a <= b <=> !(b < a)
         a => b <=> !(b > a)
+
+**C++ definition:**
+
+    template <class T>
+    concept bool StrictTotallyOrdered() {
+        return EqualityComparable<T>() &&
+        requires (const T a, const T b) {
+            { a < b } -> Boolean;
+            { a > b } -> Boolean;
+            { a <= b } -> Boolean;
+            { a >= b } -> Boolean;
+        };
+    }
+    
+    template <class T, class U>
+    concept bool StrictTotallyOrdered() {
+        return Common<T, U>() &&
+            StrictTotallyOrdered<T>() &&
+            StrictTotallyOrdered<U>() &&
+            StrictTotallyOrdered<common_type_t<T, U>>() &&
+            EqualityComparable<T, U>() &&
+            requires (const T t, const U u) {
+                { t < u } -> Boolean;
+                { t > u } -> Boolean;
+                { t <= u } -> Boolean;
+                { t >= u } -> Boolean;
+                { u < t } -> Boolean;
+                { u > t } -> Boolean;
+                { u <= t } -> Boolean;
+                { u >= t } -> Boolean;
+            };
+    }
 
 **Example implementation:**
 
@@ -348,15 +633,18 @@ The `TotallyOrdered` concept requires The `EqualityComparable` concept plus the 
         return !(lhs < rhs);
     }
 
-
-### Function concepts
-
-Function concepts describe requirements on function types. [Stroustrup12](#Stroustrup12) §3.4
+Not all arguments will be well-formed for a given type. For example, `NaN` is not a well-formed
+floating point value, and many types’ moved-from states are not well-formed. This does not mean that the type does not satisfy `StrictTotallyOrdered`.
 
 
-##### Function
+### Callable concepts
 
-The `Function` concept describes a type whose objects can be called over a (possibly empty) sequence of arguments. `Function`s are not `Semiregular` types; they may not exhibit the full range of capabilities as built-in value types. Minimally, they can be expected to be copy- and move-constructible but not copy- and move-assignable:
+Callable concepts describe requirements on function types. [Stroustrup12](#Stroustrup12) §3.4
+
+
+##### Callable
+
+The `Callable` concept describes a type whose objects can be called over a (possibly empty) sequence of arguments. `Callable`s are not `Semiregular` types; they may not exhibit the full range of capabilities as built-in value types. Minimally, they can be expected to be copy- and move-constructible but not copy- and move-assignable:
 
     Object:
         requirement: T* == &a (an object of this type can have its address taken and the result is a pointer to T)
@@ -380,21 +668,50 @@ The `Function` concept describes a type whose objects can be called over a (poss
         requirement: ResultType<F f, Args args...> == f(args...) (callable with arguments)
         axiom: not_equality_preserving(f(args)) (not required to preserve equality)
 
+**C++ definition:**
 
-##### RegularFunction
+    template <class F, class...Args>
+    concept bool Callable() {
+        return CopyConstructible<F>() &&
+            requires (F f, Args&&...args) {
+                invoke(f, std::forward<Args>(args)...); // not required to be equality preserving
+            };
+    }
 
-The `RegularFunction` concept describes a `Function` that is equality-preserving, i.e. they have predictable and reasonable side-effects:
+Since the invoke function call expression is not required to be equality-preserving, a function that generates random numbers may satisfy `Callable`-
 
-    Function<F, Args...>
+
+##### RegularCallable
+
+The `RegularCallable` concept describes a `Callable` that is equality-preserving, i.e. they have predictable and reasonable side-effects:
+
+    Callable<F, Args...>
     axiom: equality_preserving(f(args))
+
+**C++ definition:**
+
+    template <class F, class...Args>
+    concept bool RegularCallable() {
+        return Callable<F, Args...>();
+    }
+
+Since the invoke function call expression is required to be equality-preserving, a function that generates random numbers does not satisfy `RegularCallable`-
 
 
 ##### Predicate
 
-The `Predicate` concept describes a `RegularFunction` whose return type is `Convertible` to bool:
+The `Predicate` concept describes a `RegularCallable` whose return type is `Convertible` to bool:
 
-    RegularFunction<P, Args...>
+    RegularCallable<P, Args...>
     Convertible<ResultType<P, Args...>, bool>
+
+**C++ definition:**
+
+    template <class F, class...Args>
+    concept bool Predicate() {
+        return RegularCallable<F, Args...>() &&
+            Boolean<result_of_t<F&(Args...)>>();
+    }
 
 
 ##### Relation
@@ -419,19 +736,60 @@ In summary, a `Relation` can be defined on different types if:
 - The relation `R` is defined for all combinations of those types
 - Any invocation of `r` on any combinations of types `T1`, `T2`, and `C` is equivalent to an invocation `r(C{t1}, C{t2})`
 
+**C++ definition:**
+
+    template <class R, class T>
+    concept bool Relation() {
+        return Predicate<R, T, T>();
+    }
+    
+    template <class R, class T, class U>
+    concept bool Relation() {
+        return Relation<R, T>() &&
+            Relation<R, U>() &&
+            Common<T, U>() &&
+            Relation<R, common_type_t<T, U>>() &&
+            Predicate<R, T, U>() &&
+            Predicate<R, U, T>();
+    }
+
+
+##### StrictWeakOrder
+
+A `Relation` satisfies `StrictWeakOrder` iff it imposes a *strict weak ordering* on its arguments.
+
+    axiom: (strict weak order using <)
+        !(a < a) (irreflexive)
+        a < b => !(b < a) (assymetric)
+        a < b && b < c => a < c (transitive)
+        a < b => a < c || c < b (transitivity of incomparability)
+
+**C++ definition:**
+
+    template <class R, class T>
+        concept bool StrictWeakOrder() {
+            return Relation<R, T>();
+        }
+    
+    template <class R, class T, class U>
+    concept bool StrictWeakOrder() {
+        return Relation<R, T, U>();
+    }
+
+
 #### Operations
 
-The following function concepts are related to numeric operations. An operation is a `RegularFunction` with a homogenous domain whose result type is convertible to its domain type. [Stroustrup12](#Stroustrup12) §3.4.2
+The following function concepts are related to numeric operations. An operation is a `RegularCallable` with a homogenous domain whose result type is convertible to its domain type. [Stroustrup12](#Stroustrup12) §3.4.2
 
 
 ##### UnaryOperation
 
-The `UnaryOperation` concept describes a `RegularFunction` with one argument and a result type that is `Convertible` to the type of the argument.
+The `UnaryOperation` concept describes a `RegularCallable` with one argument and a result type that is `Convertible` to the type of the argument.
 
 
 ##### BinaryOperation
 
-The `BinaryOperation` concept describes a `RegularFunction` with two arguments that share a `Common` type, and a result type that is `Convertible` to the `Common` type of the argument.
+The `BinaryOperation` concept describes a `RegularCallable` with two arguments that share a `Common` type, and a result type that is `Convertible` to the `Common` type of the argument.
 
 
 ### Iterator concepts
@@ -573,7 +931,7 @@ The `BidirectionalIterator` concept describes a `ForwardIterator` that supports 
 
 ##### RandomAccessIterator
 
-The `RandomAccessIterator` concept describes a `BidirectionalIterator` that is also `TotallyOrdered`. It allows constance advancement some number of steps in either direction. The distance between `RandomAccessIterator`s can also be computed in constant time by subtracting two values.
+The `RandomAccessIterator` concept describes a `BidirectionalIterator` that is also `StrictTotallyOrdered`. It allows constance advancement some number of steps in either direction. The distance between `RandomAccessIterator`s can also be computed in constant time by subtracting two values.
 
     Difference:
         requires: DifferenceType<I> == i - j
@@ -626,12 +984,12 @@ The `Permutable` concept describes a requirement for permuting or rearranging th
 
 ##### Mergeable
 
-The `Mergeable` concept describes the requirements of algorithms that merge sorted sequences into an output sequence. It requires a `Permutable` iterator range and a `TotallyOrdered` or a *strict weak order* `Relation` between value types.
+The `Mergeable` concept describes the requirements of algorithms that merge sorted sequences into an output sequence. It requires a `Permutable` iterator range and a `StrictTotallyOrdered` or a *strict weak order* `Relation` between value types.
 
 
 ##### Sortable
 
-The `Sortable` concept describes the requirements of algorithms that permute sequences of iterators into an ordered sequence. It requires a `ForwardIterator` and a `TotallyOrdered` or a *strict weak order* `Relation` between value types.
+The `Sortable` concept describes the requirements of algorithms that permute sequences of iterators into an ordered sequence. It requires a `ForwardIterator` and a `StrictTotallyOrdered` or a *strict weak order* `Relation` between value types.
 
 
 References
@@ -655,3 +1013,8 @@ http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2012/n3351.pdf
 [ISO15]
 "Programming Languages — C++ Extensions for Concepts", ISO N4549
 http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2015/n4549.pdf
+
+<a name="Niebler15"></a>
+[Niebler15]
+"Working Draft, C++ Extensions for Ranges", ISO N4569
+http://open-std.org/JTC1/SC22/WG21/docs/papers/2016/n4569.pdf
