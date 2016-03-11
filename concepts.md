@@ -10,7 +10,7 @@ The guidelines cover C++98, C++11, C++14, and C++17, with notes on differences b
 Template constraints
 --------------------
 
-In C++17, template parameter types can be constrained to satisfy concepts. There are three syntactic forms available. [Sutton13](#Sutton13) §2
+In the C++17 concepts TS, template parameter types can be constrained to satisfy concepts. There are three syntactic forms available. [Sutton13](#Sutton13) §2
 
 **Example:**
 
@@ -26,7 +26,13 @@ In C++17, template parameter types can be constrained to satisfy concepts. There
     // Shorthand replacing template declaration
     void sort(Sortable& container);
 
-Putting `requires` behind a comment for the first form or using `#define` to alias the `typename` keyword provides easy ways to declare template constraints in anticipation of compiler support for the first two forms.
+Using `#define` to alias the `typename` keyword, or aliasing the `requires` keyword with a variadic macro provides easy ways to declare template constraints in anticipation of compiler support for the first two forms, treating them as documentation.
+
+**Example:**
+
+    #define Sortable typename
+    
+    #define requires(...)
 
 Constraints can also be used with member functions.
 
@@ -93,7 +99,7 @@ A *type constructor* is a mechanism for creating a new type from one or more exi
 Concept definitions
 -------------------
 
-The concepts presented in this section are not yet standardized and there may be substantial differences in C++17. The concepts are described in greater detail in [Stroustrup12](#Stroustrup12), and some concept definitions are taken from [Niebler15](#Niebler15).
+The concepts presented in this section are not yet standardized and there may be substantial differences in the C++17 concepts TS. The concepts are described in greater detail in [Stroustrup12](#Stroustrup12), and some concept definitions are taken from [Niebler15](#Niebler15).
 
 The concept definitions consist of *requirements*, which express syntax and must be checked by the compiler, and *axioms*, which express semantics and must not be checked by the compiler.
 
