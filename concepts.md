@@ -26,13 +26,13 @@ In the C++17 concepts TS, template parameter types can be constrained to satisfy
     // Shorthand replacing template declaration
     void sort(Sortable& container);
 
-Using `#define` to alias the `typename` keyword, or aliasing the `requires` keyword with a variadic macro provides easy ways to declare template constraints in anticipation of compiler support for the first two forms, treating them as documentation.
+Aliasing the `requires` keyword with a variadic macro, or using `#define` to alias the `typename` keyword, provides easy ways to declare template constraints in anticipation of compiler support for the first two forms, treating them as documentation.
 
 **Example:**
 
-    #define Sortable typename
-    
     #define requires(...)
+    
+    #define Sortable typename
 
 Constraints can also be used with member functions.
 
@@ -200,7 +200,7 @@ The `UnsignedIntegral` concept is defined in terms of the `Integral` and `Signed
 **Example:**
 
     UnsignedIntegral<int>          // is false
-    UnsignedIntegral<signed int>   // is faĺse
+    UnsignedIntegral<signed int>   // is false
     UnsignedIntegral<unsigned int> // is true
     UnsignedIntegral<double>       // is false
 
@@ -604,9 +604,8 @@ The `StrictTotallyOrdered` concept requires The `EqualityComparable` concept plu
 **Example implementation:**
 
     struct Rational {
-        int x = 0;
-        int y = 0;
-        int z = 0;
+        int numerator = 0;
+        int denominator = 0;
     };
     
     inline bool operator==(Rational& lhs, const Rational& rhs)
@@ -684,7 +683,7 @@ The `Callable` concept describes a type whose objects can be called over a (poss
             };
     }
 
-Since the invoke function call expression is not required to be equality-preserving, a function that generates random numbers may satisfy `Callable`-
+Since the invoke function call expression is not required to be equality-preserving, a function that generates random numbers may satisfy `Callable`.
 
 
 ##### RegularCallable
