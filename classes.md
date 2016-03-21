@@ -233,8 +233,7 @@ Example: `std::vector`
 
 **Example implementation:**
 
-    class ValueClass
-    {
+    class ValueClass {
     public:
         // Copy constructor: Public and non-virtual
         ValueClass(const ValueClass& rhs) {}
@@ -272,8 +271,7 @@ Example: `std::pair`
 
 **Example implementation:**
 
-    struct Aggregate
-    {
+    struct Aggregate {
         std::string member1;
         SomeClass member2;
     };
@@ -296,8 +294,7 @@ POD-structs (Plain Old Data) are a special case of [Aggregates](#Aggregates) tha
 
 **Example implementation:**
 
-    struct PodStruct
-    {
+    struct PodStruct {
         int member1;
         AnotherPodStruct member2[3];
     };
@@ -311,26 +308,8 @@ POD-structs are typically compatible with C-style `struct`s.
 Base classes are the building blocks of class hierarchies. They establish interfaces through virtual functions. They are usually instantiated dynamically on the free store or heap as part of a concrete derived class object, and used via a (smart) pointer. They should be used to represent concepts with inherent hierarchical structure. [Stroustrup13](#Stroustrup13) §3.2.4
 
 **Example implementations:**
-
-    class BaseClassCpp98
-    {
-    public:
-        // Destructor allowing polymorphic deletion
-        virtual ~BaseClassCpp98() {}
     
-        // Non-virtual functions, defining interface
-     private:
-        // Copy constructor not implemented to disable copying, preventing accidental slicing
-        BaseClassCpp98(const BaseClassCpp98&);
-    
-        // Copy assignment operator not implemented to disable copying, preventing accidental slicing
-        BaseClassCpp98& operator=(const BaseClassCpp98&);
-    
-        // Virtual functions (protected if needed), defining implementation details
-    };
-    
-    class BaseClassCpp11
-    {
+    class BaseClassCpp11 {
     public:
         // Destructor allowing polymorphic deletion
         virtual ~BaseClass() = default;
@@ -349,6 +328,22 @@ Base classes are the building blocks of class hierarchies. They establish interf
        
         // Non-virtual functions, defining interface
      private:
+    
+        // Virtual functions (protected if needed), defining implementation details
+    };
+    
+    class BaseClassCpp98 {
+    public:
+        // Destructor allowing polymorphic deletion
+        virtual ~BaseClassCpp98() {}
+    
+        // Non-virtual functions, defining interface
+     private:
+        // Copy constructor not implemented to disable copying, preventing accidental slicing
+        BaseClassCpp98(const BaseClassCpp98&);
+    
+        // Copy assignment operator not implemented to disable copying, preventing accidental slicing
+        BaseClassCpp98& operator=(const BaseClassCpp98&);
     
         // Virtual functions (protected if needed), defining implementation details
     };
@@ -371,8 +366,7 @@ Abstract interfaces are classes made up entirly of (pure) virtual functions and 
 
 **Implementation:**
 
-    class Interface
-    {
+    class Interface {
     public:
         // Public virtual destructor to allow polymorphic deletion. [Sutter02] §27
         virtual ~Interface () = 0;
@@ -402,15 +396,13 @@ Examples: `std::iterator_traits`, `std::numeric_limits`
 
     // Traits class template to determine if a type is void
     template <typename T>
-    struct is_void
-    {
+    struct is_void {
        static const bool value = false;
     };
     
     // Template specialization for void
     template <>
-    struct is_void<void>
-    {
+    struct is_void<void> {
         static const bool value = true;
     };
     
@@ -419,8 +411,7 @@ Examples: `std::iterator_traits`, `std::numeric_limits`
     
     // Traits class with typedef:
     template <typename T>
-    struct collection_traits
-    {
+    struct collection_traits {
         typedef std::vector<T> collection_type;
     };
     
@@ -445,8 +436,7 @@ In C++11, `std::unary_function` and `std::binary_function` have been deprecated.
 
     // Lightweight predicate functor
     template <typename T>
-    class Predicate : public std::unary_function<T, bool>
-    {
+    class Predicate : public std::unary_function<T, bool> {
     public:
         bool operator()(const T& value) const
         { return value.fulfillsPredicate(); }
@@ -454,8 +444,7 @@ In C++11, `std::unary_function` and `std::binary_function` have been deprecated.
     
     // Heavy polymorphic functor implemented using [Pimpl]
     template <typename T>
-    class Functor : public std::unary_function<T, void>
-    {
+    class Functor : public std::unary_function<T, void> {
     public:
         void operator()(const T& value) const
         { pimpl_->operator()(value); }
@@ -465,9 +454,7 @@ In C++11, `std::unary_function` and `std::binary_function` have been deprecated.
     
     // The implementation class, holding state
     template <typename T>
-    class FunctorImpl : public std::unary_function<T, void>
-    {
-    private:
+    class FunctorImpl : public std::unary_function<T, void> {
         // Some heavy state
         Widget w_;
         int x_;
@@ -497,8 +484,7 @@ Exceptions should be thrown by value and be caught by (const) reference. If re-t
 
 **Example implementation:**
 
-    class ExceptionClass : public std:exception
-    {
+    class ExceptionClass : public std:exception {
     public:
         // No-fail constructor
         ExceptionClass() {}
@@ -510,7 +496,7 @@ Exceptions should be thrown by value and be caught by (const) reference. If re-t
         ~ExceptionClass() throw() {};
     
         // Virtual functions, often implements Cloning and the Visitor Pattern [Sutter05] §54
-    }
+    };
 
 
 ### Policy classes
@@ -525,8 +511,7 @@ Because you can mix and match policies, you can achieve a combinatorial set of b
 **Example implementation:**
 
     // Policy class for using std::cout to print a message
-    class OutputPolicyWriteToCout
-    {
+    class OutputPolicyWriteToCout {
     protected:
         template <typename MessageType>
         void print(MessageType const& message) const
@@ -534,16 +519,14 @@ Because you can mix and match policies, you can achieve a combinatorial set of b
     };
     
     // Policy class for the "Hello World!" message in English
-    class LanguagePolicyEnglish
-    {
+    class LanguagePolicyEnglish {
     protected:
         std::string message() const
         { return "Hello, World!"; }
     };
     
     // Policy class for the "Hello World!" message in German
-    class LanguagePolicyGerman
-    {
+    class LanguagePolicyGerman {
     protected:
         std::string message() const
         { return "Hallo Welt!"; }
@@ -551,8 +534,7 @@ Because you can mix and match policies, you can achieve a combinatorial set of b
     
     // Host class, accepting two different policies
     template <typename OutputPolicy, typename LanguagePolicy>
-    class HelloWorld : private OutputPolicy, private LanguagePolicy
-    {
+    class HelloWorld : private OutputPolicy, private LanguagePolicy {
         using OutputPolicy::print;
         using LanguagePolicy::message;
     public:
@@ -576,16 +558,14 @@ A C++ mixin class is a template class that is parameterized on its [Base class](
 
 **Example implementation:**
 
-    class ConcreteMessage
-    {
+    class ConcreteMessage {
     public:
         void print()
         { cout << "Hello!"; }
     };
     
     template <typename T>
-    class BoldMixin : public T
-    {
+    class BoldMixin : public T {
     protected:
         void print()
         {
@@ -596,8 +576,7 @@ A C++ mixin class is a template class that is parameterized on its [Base class](
     };
     
     template <typename T>
-    class ItalicMixin : public T
-    {
+    class ItalicMixin : public T {
     protected:
         void print()
         {
@@ -697,14 +676,12 @@ Introduces a name that is declared elsewhere into the declarative region where t
 
 `using` can be used to expose protected members of base classes as public members in derived classes:
 
-    class Base
-    {
+    class Base {
     protected:
         int foo; // Base::foo is protected
     };
     
-    Class Derived : public Base
-    {
+    Class Derived : public Base {
     public:
         using Base::foo; // Derived::foo is public
     };
@@ -732,8 +709,7 @@ The `friend` keyword can be used to override access restrictions for other class
 
 **Example:**
 
-    Class Foo
-    {
+    Class Foo {
     private:
         int data;
     
@@ -776,8 +752,7 @@ In C++11, the keyword `default` is used to enable compiler-generated functions i
 
 **Example:**
 
-    Class Uncopyable
-    {
+    Class Uncopyable {
     public:
         Uncopyable(const Uncopyable&) = delete;
         Uncopyable& operator=(const Uncopyable&) = delete;
@@ -796,8 +771,7 @@ In C++11, class member functions may be declared with reference qualifiers. This
 
 **Example:**
 
-    class Widget
-    {
+    class Widget {
     public:
         void doWork() &;  // Called when *this is an lvalue
         void doWork() &&; // Called when *this is an rvalue
@@ -914,8 +888,7 @@ If a class has a reference member, it probably needs a copy constructor. [Strous
 
 **Example:**
 
-    class NonSliceableComponents
-    {
+    class NonSliceableComponents {
     public:
         // Copy constructor
         NonSliceableComponents(const NonSliceableComponents& rhs) 
@@ -928,16 +901,14 @@ If a class has a reference member, it probably needs a copy constructor. [Strous
         std::vector<NonSliceableComponent*> components_;
     };
     
-    struct NonSliceableComponent
-    {
+    struct NonSliceableComponent {
         virtual NonSliceable* clone() const = 0;
     };
     
-    struct Component : public NonSliceableComponent
-    {
+    struct Component : public NonSliceableComponent {
         // Virtual copy constructor, using the normal copy constructor
         virtual Component* clone() const { return new Derived(*this); }
-    }
+    };
 
 
 #### Copy assignment operator
@@ -1016,8 +987,7 @@ In C++11, `swap()` is implemented using `std::move`, so for types with an effici
 
 **Example implementation:**
 
-    class Derived : public Base
-    {
+    class Derived : public Base {
     private:
         U member1_;
         int member2_;
@@ -1057,8 +1027,7 @@ In C++11, `swap()` is implemented using `std::move`, so for types with an effici
     
     // Template example
     template <typename T>
-    class C
-    {
+    class C {
         ...
         // Member swap template
         void swap(C<T>& rhs) noexcept
@@ -1179,6 +1148,8 @@ If implementing one of these, implement its corresponding compound assignment op
 
 Binary operators are typically implemented as non-members to maintain symmetry (for example, when adding a complex number and an integer, if `operator+` is a member function of the complex type, then only complex+integer would compile, and not integer+complex).
 
+Try to implement `operator+` only for binary operations that are both associative and commutative, and `operator*` for binary operations that are associative but not commutative.
+
     class T {
     public:
         T& operator+=(const T& rhs) // Compound assignment (does not need to be a member, but often is, to modify the private members)
@@ -1291,13 +1262,13 @@ User-defined classes that provide array-like access that allows both reading and
         value_t& operator[](std::size_t idx)
         {
             /* Actual access, e.g. return mVector[idx]; */
-        };
+        }
     
         const value_t& operator[](std::size_t idx) const
         {
             // Either actual access, or reuse non-const overload, for example, as follows:
             return const_cast<T&>(*this)[idx];
-        };
+        }
     };
 
 #### operator&&, operator||, operator,
@@ -1340,8 +1311,7 @@ When you write a placement version of operator new, be sure to write the corresp
 
 **Usage example:**
 
-    class Widget
-    {
+    class Widget {
     public:
         Widget(int widgetSize);
         ...
@@ -1405,8 +1375,7 @@ APIs often require access to raw resources, so RAII classes should provide some 
 
 **Example implementation**:
 
-    class Resource
-    {
+    class Resource {
     private:
         RawResource* resource_; // The managed resource
     public:
@@ -1476,8 +1445,7 @@ In C++11, for `unique_ptr` Pimpl pointers, declare special member functions in t
 **Example implementation:**
 
     // Foo.hpp:
-    class Foo
-    {
+    class Foo {
     public:
         void bar();
     private:
@@ -1486,8 +1454,7 @@ In C++11, for `unique_ptr` Pimpl pointers, declare special member functions in t
     };
 
     // Foo.cpp:
-    struct FooImpl()
-    {
+    struct FooImpl() {
         void bar()
         { ... } // Do something, the actual implementation
     };
@@ -1506,8 +1473,7 @@ This is achieved by creating classes inheriting from a base class template, spec
 **Example implementation:**
 
     template <typename Derived>
-    struct Base
-    {
+    struct Base {
         void interface()
         {
             ...
@@ -1528,8 +1494,7 @@ This is achieved by creating classes inheriting from a base class template, spec
     };
     
     // The Curiously Recurring Template Pattern (CRTP)
-    struct Derived1 : Base<Derived1>
-    {
+    struct Derived1 : Base<Derived1> {
         // This class uses Base's variant of implementation()
         //void implementation();
     
@@ -1537,8 +1502,7 @@ This is achieved by creating classes inheriting from a base class template, spec
         static void static_implementation();
     };
     
-    struct Derived2 : Base<Derived2>
-    {
+    struct Derived2 : Base<Derived2> {
         // This class overrides implementation()
         void implementation();
     
@@ -1566,34 +1530,29 @@ The Visitor Pattern allows adding functionality to a set of classes without "pol
 
 Now, to add a `log()` functionality to all derived classes, first add an `accept(Visitor)` function to the hierarchy:
     
-    class Base
-    {
+    class Base {
     public:
         virtual void accept(Visitor& v) = 0;
     };
     
-    class Foo : public Base
-    {
+    class Foo : public Base {
     public:
         virtual void accept(Visitor& v) override { v.visit(this); }
     };
     
-    class Bar : public Base
-    {
+    class Bar : public Base {
     public:
         virtual void accept(Visitor& v) override { v.visit(this); }
     };
     
-    class Baz : public Base
-    {
+    class Baz : public Base {
     public:
         virtual void accept(Visitor& v) override { v.visit(this); }
     };
 
 Next, create a `Visitor` [Base class](#BaseClasses) with a pure virtual `visit()` method for each `Base` type:
 
-    class Visitor
-    {
+    class Visitor {
     public:
         virtual void visit(Foo* b) = 0;
         virtual void visit(Bar* b) = 0;
@@ -1602,8 +1561,7 @@ Next, create a `Visitor` [Base class](#BaseClasses) with a pure virtual `visit()
 
 Finally, create a `LogVisitor` derived class for each derived class with the implementation (we could add more Visitors like this when we need other new functions):
 
-    class LogVisitor : public Visitor
-    {
+    class LogVisitor : public Visitor {
     public:
         void visit(Foo* b)
         { cout << "Logging" << b->fooFunction(); }
@@ -1631,8 +1589,7 @@ Classes designed using the NVI pattern (Non-Virtual Interface) can be useful for
 
 **Example implementation:**
 
-    class Base
-    {
+    class Base {
     private:
         ReaderWriterLock lock_;
         SomeComplexDataType data_;
@@ -1659,8 +1616,7 @@ Classes designed using the NVI pattern (Non-Virtual Interface) can be useful for
         virtual void write_to_impl(std::ostream&) const = 0;
     };
     
-    class XMLReaderWriter : public Base
-    {
+    class XMLReaderWriter : public Base {
     private:
         virtual void read_from_impl (std::istream&) override // Note: Not part of the client interface!
         { ... } // Read XML.
@@ -1669,8 +1625,7 @@ Classes designed using the NVI pattern (Non-Virtual Interface) can be useful for
         { ... } // Write XML.
     };
     
-    class TextReaderWriter : public Base
-    {
+    class TextReaderWriter : public Base {
     private:
         virtual void read_from_impl (std::istream&) override { ... }
         virtual void write_to_impl (std::ostream&) const override { ... }
@@ -1684,8 +1639,7 @@ Type Erasure is a technique providing polymorphism for arbitrary classes, withou
 
 **Example implementation:**
 
-    class TypeErasure
-    {
+    class TypeErasure {
     public:
         // Templated constructor to allow arbitrary types.
         template <typename T>
@@ -1695,8 +1649,7 @@ Type Erasure is a technique providing polymorphism for arbitrary classes, withou
         friend void show(const TypeErasure& obj) { obj.self_->show_(); }
     private:
         // Abstract base class corresponding to the internal interface being enforced.
-        struct Concept
-        {
+        struct Concept {
             virtual ~Concept() = default;
     
             virtual void show_() const = 0;
@@ -1704,8 +1657,7 @@ Type Erasure is a technique providing polymorphism for arbitrary classes, withou
     
         // Derived class that adapts the interface and holds the actual data.
         template <typename T>
-        struct Model : Concept
-        {
+        struct Model : Concept {
             explicit Model(T obj) : data_(std::move(obj)) {}
     
             // Forwarding function
@@ -1737,16 +1689,14 @@ In order to ensure object identity, empty classes in C++ don't take 0 bytes of m
     class E2 {};
     
     // without EBCO
-    class Foo
-    {
+    class Foo {
         E1 e1;
         E2 e2;
         int data;
     }; // sizeof(Foo) = 8
     
     // with EBCO
-    class Bar : private E1, private E2
-    {
+    class Bar : private E1, private E2 {
         int data;
     }; // sizeof(Bar) = 4
 
