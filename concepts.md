@@ -157,7 +157,7 @@ The `Integral` concept is defined by the type trait `is_integral<T>::value`.
 
     template <class T>
     concept bool Integral() {
-        return is_integral<T>::value;
+        return std::is_integral<T>::value;
     }
 
 **Example:**
@@ -175,7 +175,7 @@ The `SignedIntegral` concept adds the `is_signed<T>::value` requirement.
 
     template <class T>
     concept bool SignedIntegral() {
-        return Integral<T>() && is_signed<T>::value;
+        return Integral<T>() && std::is_signed<T>::value;
     }
 
 **Example:**
@@ -214,6 +214,13 @@ The following concpets describe relationships between types.
 
 The `Same` concept is built-in to the language, described by the standard library type `is_same`. For two types `T` and `U`, `Same<T, U>` is true iff `T` and `U` denote exactly the same type after elimination of aliases. For the purposes of constraint checking, `Same<T, U>()` implies `Same<U, T>`.
 
+**C++ definition:**
+
+    template <class T, class U>
+    concept bool Same() {
+        return std::is_same<T, U>::value;
+    }
+
 **Example:**
 
     using Pi = int*;
@@ -225,6 +232,13 @@ The `Same` concept is built-in to the language, described by the standard librar
 ##### DerivedFrom
 
 The `DerivedFrom` concept returns true if one type is derived from another.
+
+**C++ definition:**
+
+    template <class T, class U>
+    concept bool DerivedFrom() {
+        return std::is_base_of<U, T>::value;
+    }
 
 **Example:**
 
@@ -238,6 +252,13 @@ The `DerivedFrom` concept returns true if one type is derived from another.
 ##### ConvertibleTo
 
 The `ConvertibleTo` concept expresses the requirement that a type `T` can be implicitly converted to a `U`.
+
+**C++ definition:**
+
+    template <class T, class U>
+    concept bool ConvertibleTo() {
+        return std::is_convertible<T, U>::value;
+    }
 
 **Example:**
 
@@ -261,11 +282,11 @@ The `Common` concept expresses that two types `T` and `U` can both be unambiguou
     template <class T, class U>
     concept bool Common() {
         return requires (T t, U u) {
-            typename common_type_t<T, U>;
-            typename common_type_t<U, T>;
-            requires Same<common_type_t<U, T>, common_type_t<T, U>>();
-            common_type_t<T, U>(std::forward<T>(t));
-            common_type_t<T, U>(std::forward<U>(u));
+            typename std::common_type_t<T, U>;
+            typename std::common_type_t<U, T>;
+            requires Same<std::common_type_t<U, T>, std::common_type_t<T, U>>();
+            std::common_type_t<T, U>(std::forward<T>(t));
+            std::common_type_t<T, U>(std::forward<U>(u));
         };
     }
 
@@ -313,7 +334,7 @@ Foundational concepts form the basis of a style of programming or are needed to 
     
     template <class T, class ...Args>
     concept bool __BindableReference = // exposition only
-        is_reference<T>::value && requires (Args&& ...args) {
+        std::is_reference<T>::value && requires (Args&& ...args) {
             T(std::forward<Args>(args)...);
         };
     
@@ -343,7 +364,7 @@ Foundational concepts form the basis of a style of programming or are needed to 
     template <class T>
     concept bool MoveConstructible() {
         return Constructible<T, remove_cv_t<T>&&>() && 
-            Convertible<remove_cv_t<T>&&, T>();
+            ConvertibleTo<remove_cv_t<T>&&, T>();
     }
 
 
@@ -354,10 +375,10 @@ Foundational concepts form the basis of a style of programming or are needed to 
     template <class T>
     concept bool CopyConstructible() {
         return MoveConstructible<T>() &&
-            Constructible<T, const remove_cv_t<T>&>() &&
-            Convertible<remove_cv_t<T>&, T>() &&
-            Convertible<const remove_cv_t<T>&, T>() &&
-            Convertible<const remove_cv_t<T>&&, T>();
+            Constructible<T, const std::remove_cv_t<T>&>() &&
+            ConvertibleTo<std::remove_cv_t<T>&, T>() &&
+            ConvertibleTo<const std::remove_cv_t<T>&, T>() &&
+            ConvertibleTo<const std::remove_cv_t<T>&&, T>();
     }
 
 
@@ -380,8 +401,8 @@ Foundational concepts form the basis of a style of programming or are needed to 
     template <class T>
     concept bool Copyable() {
         return CopyConstructible<T>() &&
-        Movable<T>() &&
-        Assignable<T&, const T&>();
+            Movable<T>() &&
+            Assignable<T&, const T&>();
     }
 
 
@@ -456,7 +477,7 @@ Let `t` and `u` be objects of types `T` and `U`. `WeaklyEqualityComparable<T, U>
     
     template <class T>
     concept bool EqualityComparable() {
-        returnWeaklyEqualityComparable<T, T>();
+        return WeaklyEqualityComparable<T, T>();
     }
     
     template <class T, class U>
@@ -464,7 +485,7 @@ Let `t` and `u` be objects of types `T` and `U`. `WeaklyEqualityComparable<T, U>
         return Common<T, U>() &&
             EqualityComparable<T>() &&
             EqualityComparable<U>() &&
-            EqualityComparable<common_type_t<T, U>>() &&
+            EqualityComparable<std::common_type_t<T, U>>() &&
             WeaklyEqualityComparable<T, U>();
     }
 
@@ -587,7 +608,7 @@ The `StrictTotallyOrdered` concept requires The `EqualityComparable` concept plu
         return Common<T, U>() &&
             StrictTotallyOrdered<T>() &&
             StrictTotallyOrdered<U>() &&
-            StrictTotallyOrdered<common_type_t<T, U>>() &&
+            StrictTotallyOrdered<std::common_type_t<T, U>>() &&
             EqualityComparable<T, U>() &&
             requires (const T t, const U u) {
                 { t < u } -> Boolean;
@@ -705,17 +726,17 @@ Since the invoke function call expression is required to be equality-preserving,
 
 ##### Predicate
 
-The `Predicate` concept describes a `RegularCallable` whose return type is `Convertible` to bool:
+The `Predicate` concept describes a `RegularCallable` whose return type is `ConvertibleTo` bool:
 
     RegularCallable<P, Args...>
-    Convertible<ResultType<P, Args...>, bool>
+    ConvertibleTo<ResultType<P, Args...>, bool>
 
 **C++ definition:**
 
     template <class F, class...Args>
     concept bool Predicate() {
         return RegularCallable<F, Args...>() &&
-            Boolean<result_of_t<F&(Args...)>>();
+            Boolean<std::result_of_t<F&(Args...)>>();
     }
 
 
@@ -753,7 +774,7 @@ In summary, a `Relation` can be defined on different types if:
         return Relation<R, T>() &&
             Relation<R, U>() &&
             Common<T, U>() &&
-            Relation<R, common_type_t<T, U>>() &&
+            Relation<R, std::common_type_t<T, U>>() &&
             Predicate<R, T, U>() &&
             Predicate<R, U, T>();
     }
@@ -772,9 +793,9 @@ A `Relation` satisfies `StrictWeakOrder` iff it imposes a *strict weak ordering*
 **C++ definition:**
 
     template <class R, class T>
-        concept bool StrictWeakOrder() {
-            return Relation<R, T>();
-        }
+    concept bool StrictWeakOrder() {
+        return Relation<R, T>();
+    }
     
     template <class R, class T, class U>
     concept bool StrictWeakOrder() {
@@ -789,12 +810,40 @@ The following function concepts are related to numeric operations. An operation 
 
 ##### UnaryOperation
 
-The `UnaryOperation` concept describes a `RegularCallable` with one argument and a result type that is `Convertible` to the type of the argument.
+The `UnaryOperation` concept describes a `RegularCallable` with one argument and a result type that is `ConvertibleTo` the type of the argument.
+
+**C++ definition:**
+
+    template <class Op, class T>
+    concept bool UnaryOperation() {
+    return RegularCallable<Op, T>() &&
+        ConvertibleTo<std::result_of_t<Op(T)>, T>();
+    }
 
 
 ##### BinaryOperation
 
-The `BinaryOperation` concept describes a `RegularCallable` with two arguments that share a `Common` type, and a result type that is `Convertible` to the `Common` type of the argument.
+The `BinaryOperation` concept describes a `RegularCallable` with two arguments that share a `Common` type, and a result type that is `ConvertibleTo` the `Common` type of the argument.
+
+**C++ definition:**
+
+    template <typename Op, typename T>
+    concept bool BinaryOperation() {
+        return RegularCallable<Op, T, T>() &&
+            ConvertibleTo<std::result_of_t<Op(T, T)>, T>();
+    }
+    
+    template <class Op, class T, class U>
+    concept bool BinaryOperation() {
+        return BinaryOperation<Op, T>() &&
+            BinaryOperation<Op, U>() &&
+            Common<T, U>() &&
+            BinaryOperation<Op, Common<T, U>>() &&
+            requires (Op op, T a, U b) {
+                { op(a, b) } -> std::common_type_t<T, U>();
+                { op(b, a) } -> std::common_type_t<T, U>();
+        };
+    }
 
 
 ### Iterator concepts
@@ -812,14 +861,6 @@ Iterator properties deal with reading values from and writing values to iterator
 The `Readable` concept defines the basic properties of *input iterators*; it states what it means for a type to be readable.
 
     requirement: const ValueType<I>& = *i (the type has a value that can be read by dereferencing)
-
-
-##### MoveWritable
-
-The `MoveWritable` concept describes a requirement for moving a value into an iterator's referenced object.
-
-    requirement: *o = move(value)
-    axiom: Readable<Out> && Same<ValueType<Out>, T> => is_valid(*o = move(value)) => eq(value, other) => (*o = move(value), eq(*o, other))
 
 
 ##### Writable
@@ -941,7 +982,7 @@ The `RandomAccessIterator` concept describes a `BidirectionalIterator` that is a
     Difference:
         requires: DifferenceType<I> == i - j
         SignedIntegral<DifferenceType>
-        Convertible<DistanceType, DifferenceType>
+        ConvertibleTo<DistanceType, DifferenceType>
         axiom:
             is_valid(distance(i, j)) <=> is_valid(i - j) && is_valid(j - i)
             is_valid(i – j) => (i – j) >= 0 => i – j == distance(i, j)
