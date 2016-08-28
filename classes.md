@@ -807,6 +807,8 @@ For a [RAII class](#RAII):
 
 The default constructor is the one that takes no arguments. If possible, one should be defined by the class (must be done explicitly if other constructors are defined) because otherwise the class will not be usable in arrays or with all standard container functions, and in virtual base classes the lack of one means that all derived classes must explicitly define all the base class's arguments. [Meyers96](#Meyers96) §4
 
+The default constructor only has to leave the object in a partially formed state, i.e. a state from which assignment and destruction is valid. [Stepanov09](#Stepanov09) §1.5
+
 If the constructor can take exactly one argument (default values may allow this for multi-argument constructors), use the `explicit` keyword to prevent implicit type conversion (almost always unwanted). [Stroustrup13](#Stroustrup13) §16.2.6, [Meyers96](#Meyers96) §5, [Sutter05](#Sutter05) §40
 
 Initialize using the initialization list rather than in the constructor body, except if you perform unmanaged resource acquisition (such as `new` expressions not immediately passed to a smart pointer). [Meyers05](#Meyers05) §4, [Sutter02](#Sutter02) §18 [Sutter05](#Sutter05) §9 §48
@@ -870,7 +872,7 @@ If you write/disable the copy constructor, also do the same for the copy assignm
 
 Copy constructors and copy assignment operators should not implement copying in terms of one of the other. Instead, put common functionality in a third function that both call. [Meyers05](#Meyers05) §12
 
-When writing a copy constructor, be careful to copy every element that needs to be copied (beware of default initializers). Copy operations should provide equivalence and independence. [Stroustrup13](#Stroustrup13) §17.5.1
+When writing a copy constructor, be careful to copy every element that needs to be copied (beware of default initializers). Copy operations should provide equivalence and independence. [Stroustrup13](#Stroustrup13) §17.5.1 [Stepanov09](#Stepanov09) §1.5
 
 If you write the copy constructor, and allocate or duplicate some resource in it, you should also write a destructor that releases it. [Sutter05](#Sutter05) §52
 
@@ -1067,6 +1069,8 @@ When implementing an operator, use the [Member and friend functions vs. non-memb
 
 #### operator=
 
+The assignment operator should make one object representationally equal to the other without modifying the other. [Stepanov09](#Stepanov09) §1.5
+
 When implementing the assignment operator, make it non-virtual and with a specific signature, returning a reference to `*this`: [Meyers05](#Meyers05) §10, [Sutter05](#Sutter05) §55
 - Classic version: `T& operator=(const T&);`
 - Optimizer-friendly: `T& operator=(T);`
@@ -1088,17 +1092,22 @@ The relational operators are:
 - `operator<=`
 - `operator=>`
 
-Standard algorithms such as `std::sort` and containers such as `std::set` expect `operator<` to be defined, by default, for the user-provided types. The implementation must satisfy the *strict weak ordering* concept (if a is less than b then b is not less than a, if a is less than b and b is less than c then a is less than c, and so on). Typically, `operator<` is provided and the other relational operators are implemented in terms of `operator<`.
-
-    inline bool operator< (const X& lhs, const X& rhs) { /* do actual comparison */ }
-    inline bool operator> (const X& lhs, const X& rhs) {return rhs < lhs;}
-    inline bool operator<=(const X& lhs, const X& rhs) {return !(lhs > rhs);}
-    inline bool operator>=(const X& lhs, const X& rhs) {return !(lhs < rhs);}
-
-Likewise, the inequality operator is typically implemented in terms of `operator==`:
+C++ doesn't provide `operator==` automatically, but it can always be implemented as bitwise equality and as equality of all members. However, it should be implemented in a way that respects the computational basis for the type.
+`operator!=` should always be defined together with `operator==` and is typically implemented in terms of `operator==`:
 
     inline bool operator==(const X& lhs, const X& rhs) { /* do actual comparison */ }
     inline bool operator!=(const X& lhs, const X& rhs) {return !(lhs == rhs);}
+
+This is the only valid semantics for `operator!=` and other implementations should only be considered for performance reasons. [Stepanov09](#Stepanov09) §1.5
+
+Standard algorithms such as `std::sort` and containers such as `std::set` expect `operator<` to be defined, by default, for the user-provided types. The implementation must satisfy the *strict weak ordering* concept (if a is less than b then b is not less than a, if a is less than b and b is less than c then a is less than c, and so on). `operator<` should be provided when there is a natural total ordering of the type, and always together with the remaining three operators. When there is no natural total ordering, use `std::less` to define a default total ordering (to enable logarithmic searching etc.) [Stepanov09](#Stepanov09) §4.4
+
+Typically, `operator<` is provided and the other relational operators are implemented in terms of `operator<`.
+
+    inline bool operator<(const X& lhs, const X& rhs) { /* do actual comparison */ }
+    inline bool operator>(const X& lhs, const X& rhs) {return rhs < lhs;}
+    inline bool operator<=(const X& lhs, const X& rhs) {return !(lhs > rhs);}
+    inline bool operator>=(const X& lhs, const X& rhs) {return !(lhs < rhs);}
 
 The `<utility>` namespace `std::rel_ops` defines template functions that derive their behavior from `operator==` and `operator<`. This avoids the necessity to declare all six relational operators for every complete type; By defining only `operator==` and `operator<`, and importing this namespace, all six operators will be defined for the type (they will not be selected by argument-dependent lookup when not importing it, though).
 Notice that using this namespace introduces these overloads for all types not defining their own. Still, because non-template functions take precedence over template functions, any of these operators may be defined with a different behavior for a specific type.
@@ -1112,7 +1121,7 @@ In C++11, `operator<` can be implemented easily for a class with many members us
     };
     
     // Correct but complicated
-    inline bool operator<(Rational& lhs, const Rational& rhs)
+    inline bool operator<(const Rational& lhs, const Rational& rhs)
     {
         if (lhs.a == rhs.a) {
             if (lhs.b == rhs.b) {
@@ -1124,7 +1133,7 @@ In C++11, `operator<` can be implemented easily for a class with many members us
     }
     
     // Correct and simple
-    inline bool operator<(Rational& lhs, const Rational& rhs)
+    inline bool operator<(const Rational& lhs, const Rational& rhs)
     {
         return std::tie(lhs.a, lhs.b, lhs.c) < std::tie(rhs.a, rhs.b, rhs.c);
     }
@@ -1148,7 +1157,7 @@ If implementing one of these, implement its corresponding compound assignment op
 
 Binary operators are typically implemented as non-members to maintain symmetry (for example, when adding a complex number and an integer, if `operator+` is a member function of the complex type, then only complex+integer would compile, and not integer+complex).
 
-Try to implement `operator+` only for binary operations that are both associative and commutative, and `operator*` for binary operations that are associative but not commutative.
+Try to implement `operator+` only for binary operations that are both associative and commutative, and `operator*` for binary operations that are associative but not necessarily commutative. [Stepanov09](#Stepanov09) §5.1
 
     class T {
     public:
@@ -1723,6 +1732,10 @@ References
 <a name="Meyers14"></a>
 [Meyers14]
 "Effective Modern C++", ISBN 978-1-491-90399-5
+
+<a name="Stepanov09"></a>
+[Stepanov09]
+"Elements of Programming", ISBN 0-321-63537-X
 
 <a name="Sutter99"></a>
 [Sutter99]
