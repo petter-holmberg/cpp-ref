@@ -188,7 +188,7 @@ Observe the canonical exception-safety rules: [Sutter99](#Sutter99) §8-18
 #### No-fail Guarantee
 
 The No-fail Guarantee is the strongest: The function simply cannot fail. The caller doesn't need to check for any errors.
-A prerequisite for any destructor, deallocation function or `swap()` function. 
+A prerequisite for any destructor, deallocation function or `swap()` function.
 
 
 <a name="StrongGuarantee"></a>
@@ -198,6 +198,15 @@ The Strong Guarantee is to ensure that failure leaves the program in the (visibl
 The immediate caller should check for failures (if it can handle them correctly on that level) but doesn't need to worry about having changed state just by making the failed call.
 
 The Strong Guarantee can often be implemented via copy-and-swap, but the Strong Guarantee is not practical for all functions. [Meyers05](#Meyers05) §29
+
+Instead of copy-and-swap, consider a utility template for the Strong Guarantee:
+
+    template <typename T>
+    C& strong_assign(C& dest, C src) {
+        using std::swap;
+        swap(dest, src);
+        return dest;
+    }
 
 
 <a name="BasicGuarantee"></a>
@@ -308,7 +317,7 @@ POD-structs are typically compatible with C-style `struct`s.
 Base classes are the building blocks of class hierarchies. They establish interfaces through virtual functions. They are usually instantiated dynamically on the free store or heap as part of a concrete derived class object, and used via a (smart) pointer. They should be used to represent concepts with inherent hierarchical structure. [Stroustrup13](#Stroustrup13) §3.2.4
 
 **Example implementations:**
-    
+
     class BaseClassCpp11 {
     public:
         // Destructor allowing polymorphic deletion
@@ -325,7 +334,7 @@ Base classes are the building blocks of class hierarchies. They establish interf
     
         // Move assignment operator
         BaseClassCpp11& operator=(BaseClassCpp11&&) = default // or delete to disable
-       
+    
         // Non-virtual functions, defining interface
      private:
     
@@ -387,7 +396,7 @@ In conjunction with overloading, traits classes make it possible to perform comp
 > Think of a trait as a small object whose main purpose is to carry information used by another object or algorithm to determine "policy" or "implementation details"
 > -- <cite>Bjarne Stroustrup</cite>
 
-Traits classes can solve the problem of generalizing functions on different types when templates alone aren't sufficient (because of different behavior) and you cannot use class polymorphism (because the types are primitive). 
+Traits classes can solve the problem of generalizing functions on different types when templates alone aren't sufficient (because of different behavior) and you cannot use class polymorphism (because the types are primitive).
 Traits classes rely on explicit template specialization for different types.
 
 Examples: `std::iterator_traits`, `std::numeric_limits`
@@ -416,7 +425,7 @@ Examples: `std::iterator_traits`, `std::numeric_limits`
     };
     
     SomeClass<collection_traits>() item;
-    SomeClass::collection_type items; 
+    SomeClass::collection_type items;
 
 
 ### Functor classes
@@ -424,8 +433,8 @@ Examples: `std::iterator_traits`, `std::numeric_limits`
 A functor is a class modeled after function pointers. The convention in STL is to pass functors by value. Therefore, they should be lightweight and have valid copy-semantics. They also need to be monomorphic, i.e. not use virtual functions.
 State and polymorphism can be implemented using the [Pimpl idiom](#Pimpl). [Meyers01](#Meyers01) §38
 
-Functors that are predicates (i.e. return `bool` or something that can be implicitly converted into `bool`) should be pure functions, i.e. their return value should only depend on the input values and not some internal state. 
-Defining `operator()` `const` is necessary for predicates, but internally they must also avoid accessing mutable data members, non-const local static objects, non-const objects at namespace scope and non-const global objects. 
+Functors that are predicates (i.e. return `bool` or something that can be implicitly converted into `bool`) should be pure functions, i.e. their return value should only depend on the input values and not some internal state.
+Defining `operator()` `const` is necessary for predicates, but internally they must also avoid accessing mutable data members, non-const local static objects, non-const objects at namespace scope and non-const global objects.
 The C++ standard doesn't guarantee that stateful predicates will work with standard algorithms! [Meyers01](#Meyers01) §39 [Sutter02](#Sutter02) §3
 
 Functors that are made adaptable can be used in many more contexts than functors that are not. Making them adaptable simply means to define some of the typedefs `argument_type`, `first_argument_type`, `second_argument_type`, and `result_type`. The conventional way to do so in C++98 is to inherit from `std::unary_function` or `std::binary_function`, depending on if the functor takes one or two arguments. These base structs are templates, taking either two or three types. The last one is the return type of `operator()`, the first one(s) are its argument type(s).
@@ -503,7 +512,7 @@ Exceptions should be thrown by value and be caught by (const) reference. If re-t
 
 Policy classes (normally templates) are fragments of pluggable behavior. They are not usually instantiated standalone but as a base or member of another class. They may or may not have state or virtual functions.
 
-In brief, policy-based class design fosters assembling a class (called the *host*) with complex behavior out of many little classes (called *policies*), each of which takes care of only one behavioral or structural aspect. As the name suggests, a policy establishes an interface pertaining to a specific issue. 
+In brief, policy-based class design fosters assembling a class (called the *host*) with complex behavior out of many little classes (called *policies*), each of which takes care of only one behavioral or structural aspect. As the name suggests, a policy establishes an interface pertaining to a specific issue.
 You can implement policies in various ways as long as you respect the policy interface.
 
 Because you can mix and match policies, you can achieve a combinatorial set of behaviors by using a small core of elementary components.
@@ -731,7 +740,7 @@ It is common to use friend functions for operator overloading, where an overload
 Causes the compiler to inject implicit try/catch blocks around the function body to enforce via run-time checking that the function does in fact throw only the specified exceptions.
 
 As a rule of thumb, never ever use it, unless forced to when overriding a base class virtual function that uses it and you cannot remove that too! In that case, use the identical exception specification for the overriding function. [Meyers96](#Meyers96) §14, [Sutter05](#Sutter05) §75
-    
+
 C++11 has deprecated the `throw` keyword. The `noexcept` keyword was added to supersede `throw()`, the empty throw specification.
 
 
@@ -796,6 +805,13 @@ The special member functions (four in C++98, six in C++11) require special treat
 
 In C++98, explicitly disallow the use of compiler-generated functions you do not want, by declaring them private and providing no implementation. In C++11, declare the functions public and deleted. [Meyers05](#Meyers05) §6, [Meyers14](#Meyers14) §11 §17
 
+Starting with C++11, all of the special member functions except the destructor can be deleted like this:
+
+    class X {
+    public:
+        X(const X&) = delete;
+        X& operator=(const X&) = delete;
+    };
 
 #### Constructor
 
@@ -893,7 +909,7 @@ If a class has a reference member, it probably needs a copy constructor. [Strous
     class NonSliceableComponents {
     public:
         // Copy constructor
-        NonSliceableComponents(const NonSliceableComponents& rhs) 
+        NonSliceableComponents(const NonSliceableComponents& rhs)
         {
             // Deep-copy all components
             for (list<NonSliceable*>::const_iterator it = rhs.components_.begin(); it != rhs.components_.end(); ++it)
@@ -981,7 +997,7 @@ In C++98, the `std::swap()` function is typically implemented like this, utilizi
       }
     }
 
-For classes where this implementation is inefficient (for example classes consisting primarily of pointers to other types containing the real data), provide a No-fail `swap()` function to efficiently and infallibly swap the contents of this object with another's. It has many potential uses (primarily in [Value classes](#ValueClasses)), e.g. to implement assignment easily while maintaining the strong exception guarantee for objects composed of other objects that provide the [Strong Guarantee](#StrongGuarantee). [Meyers05](#Meyers05) §25, [Sutter99](#Sutter99) §12 [Sutter02](#Sutter02) §22 [Sutter05](#Sutter05) §56
+For classes where this implementation is inefficient (for example classes consisting primarily of pointers to other types containing the real data), provide a No-fail `swap()` function to efficiently and infallibly swap the contents of this object with another's. It has many potential uses (primarily in [Value classes](#ValueClasses)), e.g. to implement assignment easily while maintaining the [Strong Guarantee](#StrongGuarantee) for objects composed of other objects that provide it. [Meyers05](#Meyers05) §25, [Sutter99](#Sutter99) §12 [Sutter02](#Sutter02) §22 [Sutter05](#Sutter05) §56
 
 If you offer a member `swap()`, also offer a non-member `swap()` that calls the member. For classes (not templates), specialize `std::swap()` too. When calling `swap()`, employ a `using` declaration for `std::swap()`, then call `swap()` without namespace qualification. It's fine to totally specialize `std` templates for user-defined types, but never try to add something completely new to `std`. [Meyers05](#Meyers05) §25
 
@@ -1011,7 +1027,8 @@ In C++11, `swap()` is implemented using `std::move`, so for types with an effici
             return *this;
         }
     
-        // Copy assignment operator utilizing swap (pass by value, more elegant in C++03 but ambiguous together with move assignment operator in C++11)
+        // Copy assignment operator utilizing the copy-and-swap idiom (pass by value, more elegant in C++03 but ambiguous together with move assignment operator in C++11 (implements both if no move assignment is implemented)
+        // Provides the Strong Guarantee but can be very inefficient
         Derived& operator=(Derived temp)
         {
             swap(temp);
@@ -1213,8 +1230,8 @@ The postfix versions (implemented in terms of the prefix versions): [Meyers96](#
         T old(*this);
         ++*this;
         return old;
-    }  
-
+    }
+    
     T T::operator--(int)
     {
         T old(*this);
@@ -1306,7 +1323,7 @@ Always explicitly declare `operator new` and `operator delete` as static functio
 
 Should return a pointer to raw, uninitialized memory.
 
-    void* operator new(std::size_t); 
+    void* operator new(std::size_t);
 
 
 ##### placement new:
@@ -1496,7 +1513,7 @@ This is achieved by creating classes inheriting from a base class template, spec
             Derived::static_implementation();
             ...
         }
-     
+    
         // The default implementation may be (if exists) or should be (otherwise) overriden by inheriting in derived classes (see below)
         void implementation();
         static void static_implementation();
@@ -1514,7 +1531,7 @@ This is achieved by creating classes inheriting from a base class template, spec
     struct Derived2 : Base<Derived2> {
         // This class overrides implementation()
         void implementation();
-    
+
         // ... and uses Base's variant of static_implementation()
         //static void static_implementation();
     };
@@ -1543,7 +1560,7 @@ Now, to add a `log()` functionality to all derived classes, first add an `accept
     public:
         virtual void accept(Visitor& v) = 0;
     };
-    
+
     class Foo : public Base {
     public:
         virtual void accept(Visitor& v) override { v.visit(this); }

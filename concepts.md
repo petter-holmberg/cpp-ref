@@ -420,20 +420,20 @@ Foundational concepts form the basis of a style of programming or are needed to 
 
 **C++ definition:**
 
-    template <class T, class ...Args>
+    template <class T, class... Args>
     concept bool __ConstructibleObject = // exposition only
-        Destructible<T>() && requires (Args&& ...args) {
+        Destructible<T>() && requires (Args&&... args) {
             T{std::forward<Args>(args)...}; // not required to be equality preserving
             new T{std::forward<Args>(args)...}; // not required to be equality preserving
         };
     
-    template <class T, class ...Args>
+    template <class T, class... Args>
     concept bool __BindableReference = // exposition only
-        std::is_reference<T>::value && requires (Args&& ...args) {
+        std::is_reference<T>::value && requires (Args&&... args) {
             T(std::forward<Args>(args)...);
         };
     
-    template <class T, class ...Args>
+    template <class T, class... Args>
     concept bool Constructible() {
         return __ConstructibleObject<T, Args...> || __BindableReference<T, Args...>;
     }
@@ -791,10 +791,10 @@ The `Invocable` concept describes a type whose objects can be called over a (pos
 
 **C++ definition:**
 
-    template <class F, class...Args>
+    template <class F, class... Args>
     concept bool Invocable() {
         return CopyConstructible<F>() &&
-            requires (F f, Args&& ...args) {
+            requires (F f, Args&&... args) {
                 invoke(f, std::forward<Args>(args)...); // not required to be equality preserving
             };
     }
@@ -811,7 +811,7 @@ The `RegularInvocable` concept describes a `Invocable` that is equality-preservi
 
 **C++ definition:**
 
-    template <class F, class...Args>
+    template <class F, class... Args>
     concept bool RegularInvocable() {
         return Invocable<F, Args...>();
     }
@@ -828,7 +828,7 @@ The `Predicate` concept describes a `RegularInvocable` whose return type is `Con
 
 **C++ definition:**
 
-    template <class F, class...Args>
+    template <class F, class... Args>
     concept bool Predicate() {
         return RegularInvocable<F, Args...>() &&
             Boolean<result_of_t<F&(Args...)>>();
