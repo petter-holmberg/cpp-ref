@@ -988,13 +988,13 @@ If the type implementation is unknown, assume that move assignment is not presen
 In C++98, the `std::swap()` function is typically implemented like this, utilizing the class's copy constructor and copy assignment operator:
 
     namespace std {
-      template <typename T>
-      void swap(T& a, T& b)
-      {
-        T temp(a);
-        a = b;
-        b = temp;
-      }
+        template <typename T>
+        void swap(T& a, T& b)
+        {
+            T temp(a);
+            a = b;
+            b = temp;
+        }
     }
 
 For classes where this implementation is inefficient (for example classes consisting primarily of pointers to other types containing the real data), provide a No-fail `swap()` function to efficiently and infallibly swap the contents of this object with another's. It has many potential uses (primarily in [Value classes](#ValueClasses)), e.g. to implement assignment easily while maintaining the [Strong Guarantee](#StrongGuarantee) for objects composed of other objects that provide it. [Meyers05](#Meyers05) §25, [Sutter99](#Sutter99) §12 [Sutter02](#Sutter02) §22 [Sutter05](#Sutter05) §56
@@ -1555,12 +1555,12 @@ The Visitor Pattern allows adding functionality to a set of classes without "pol
     class Baz : public Base {};
 
 Now, to add a `log()` functionality to all derived classes, first add an `accept(Visitor)` function to the hierarchy:
-    
+
     class Base {
     public:
         virtual void accept(Visitor& v) = 0;
     };
-
+    
     class Foo : public Base {
     public:
         virtual void accept(Visitor& v) override { v.visit(this); }
