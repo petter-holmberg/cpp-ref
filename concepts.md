@@ -10,7 +10,7 @@ The guidelines cover C++98, C++11, C++14, and C++17, with notes on differences b
 Template constraints
 --------------------
 
-In the C++17 concepts TS, template parameter types can be constrained to satisfy concepts. There are three syntactic forms available. [Sutton13](#Sutton13) §2
+In the C++17 concepts TS [Sutton16](#Sutton16), template parameter types can be constrained to satisfy concepts. There are three syntactic forms available. [Sutton13](#Sutton13) §2
 
 **Example:**
 
@@ -26,19 +26,43 @@ In the C++17 concepts TS, template parameter types can be constrained to satisfy
     // Shorthand replacing template declaration
     void sort(Sortable& container);
 
-Aliasing the `requires` keyword with a variadic macro, or using `#define` to alias the `typename` keyword, provides easy ways to declare template constraints in anticipation of compiler support for the first two forms, treating them as documentation.
+The `auto` keyword can also be used to describe a completely unconstrained parameter. Note that the semantics differ from when a named concept is defined. [Stroustrup17](#Stroustrup17)
+§7.1
 
 **Example:**
 
-    #define requires(...)
+    concept bool Any = true; // Every type is an any
     
+    void f(Any x, Any y); // x and y must take the same type
+    void g(auto x, auto y); // x and y can be of different type
+
+Aliasing the `requires` keyword with a variadic macro, or using `#define` to alias the `typename` keyword, provides easy ways to declare template constraints in anticipation of compiler support for the first two forms, treating them as documentation. [Stroustrup17](#Stroustrup17) §5.6
+
+**Example:**
+
+    #ifndef CONCEPTS_AVAILABLE
+    #ifdef ALTERNATIVE_1
+    #define requires(...)
+    #elseif ALTERNATIVE_2
+    #define requires //
+    #endif
+    #endif
+    
+    #ifndef CONCEPTS_AVAILABLE
+    #ifdef PRE_CPP11
     #define Sortable typename
+    #elseif POST_CPP11
+    #define Sortable auto
+    #endif
+    #endif
+
+To get a rough equivalent of concept-based overloading, `enable_if` can be used.
 
 Constraints can also be used with member functions.
 
 **Example:**
 
-    template<Object T, Allocator A>
+    template <Object T, Allocator A>
     class vector {
         requires Equality_comparable<T>()
             bool operator==(const vector& x) const;
@@ -52,12 +76,12 @@ Multi-type constraints can easily be expressed using explicit form with conjunct
 **Example:**
 
     // Explicit form
-    template<typename S, typename T>
+    template <typename S, typename T>
         requires Sequence<S>() && Equality_comparable<T, Value_type<S>>()
     Iterator_type<S> find(S&& sequence, const T& value);
     
     // Shorthand form
-    template<Sequence S, Equality_comparable<Value_Type<S>> T>
+    template <Sequence S, Equality_comparable<Value_Type<S>> T>
     Iterator_type<S> find(S&& sequence, const T& value);
 
 
@@ -82,12 +106,16 @@ A *type function* is a mapping from a type to an affiliated type. Examples of ty
 
 **Example:**
 
-    template<typename T>
+    template <typename T>
     struct value_type {
         typedef T type;
     };
     
-    // Convenience notation
+    // Convenience notation using alias templates (C++11)
+    template <typename T>
+    using ValueType = typename value_type<T>::type;
+    
+    // Convenience notation using macro (C++98)
     #define ValueType(T) typename value_type<T>::type
 
 
@@ -96,17 +124,62 @@ A *type function* is a mapping from a type to an affiliated type. Examples of ty
 A *type constructor* is a mechanism for creating a new type from one or more existing types. Examples of type constructors in C++ are the `*` (pointer) operator, `struct`, which is a n-ary type constructor, and `std::pair`, which returns a structure of two members.
 
 
+Concept design guidelines
+-------------------------
+
+Ideally, a concept represents a fundamental concept in some domain, hence the name "concept". A concept has semantics; it means something; it is not just a set of unrelated operations and types. [Stroustrup17](#Stroustrup17) §5
+
+avoid "single property concepts". People sometimes get into trouble defining something like this: [Stroustrup17](#Stroustrup17) §5.1
+
+    template <typename T>
+    concept bool Addable = requires(T a, T b) { { a+b } -> T; };
+
+`Addable` is not a suitable concept for general use, it does not represent a fundamental user-level concept. If `Addable`, why not `Subtractable`? (`std::string` is not `Subtractable`, but `int*` is).
+
+The first step to design a good concept is to consider what is a complete (necessary and sufficient) set of properties (operations, types, etc.) to match the domain concept, taking into account the semantics of that domain concept. [Stroustrup17](#Stroustrup17) §5.2
+
+A standard generic programming technique has been to specify the requirements of an algorithm to be the absolute minimum. This is not what we do to design the most useful concepts. That kind of design leads to programs where:
+- Every algorithm has its own requirements (a variety that we cannot easily remember).
+- Every type must be designed to match an unspecified and changing set of requirements.
+- When we improve the implementation of an algorithm, we must change its requirements (part of its interface), potentially breaking code.
+
+In this direction lies chaos. Thus, the ideal is not "minimal requirements" but "requirements expressed in terms of fundamental and complete concepts". This puts a burden on the designers of types (to match concepts), but that leads to better types and to more flexible code.
+To design good concepts and to use concepts well, remember that an implementation isn’t a specification - someday, someone is likely to want to improve the implementation and ideally that is done without affecting the interface. Often, we cannot change an interface because doing so would break user code.
+To write maintainable and widely usable code we aim for semantic coherence, rather than minimalism for each concept and algorithm in isolation. [Stroustrup17](#Stroustrup17) §5.3
+
+Concepts that are too simple for general use and/or lack a clear semantics can also be used as building blocks for more complete concepts.
+Sometimes, we call such overly simple or incomplete concepts "constraints" to distinguish them from the "real concepts". [Stroustrup17](#Stroustrup17) §5.4
+
+In the rare case where two concepts are identical syntactically but differ semantically (e.g., `InputIterator` and `ForwardIterator` are almost indistinguishable), either disambiguate them by adding an operation or a member type or use a traits class in the implementation of operations on them. [Stroustrup17](#Stroustrup17) §8.5
+
+
+Matching types to concepts
+--------------------------
+
+To match types to concepts, `static_assert` that the desired concept matches. [Stroustrup17](#Stroustrup17) §5.5
+
+**Example:**
+
+    class My_number { /* ... */ };
+    static_assert(Number<My_number>);
+    static_assert(Group<My_number>);
+    static_assert(Someone_elses_number<My_number>);
+    
+    class My_container { /* ... */ };
+    static_assert(Random_access_iterator<My_container::iterator>);
+
+
 Concept definitions
 -------------------
 
-The concepts presented in this section are not yet standardized and there may be substantial differences in the C++17 concepts TS. The concepts are described in greater detail in [Stroustrup12](#Stroustrup12), and some concept definitions are taken from [Niebler15](#Niebler15).
+The concepts presented in this section are not yet standardized and there may be substantial changes before they are finalized. Concept definitions are taken from the Ranges TS draft ([Niebler16](#Niebler16)), and many of the concepts are described in greater detail in [Stroustrup12](#Stroustrup12).
 
 The concept definitions consist of *requirements*, which express syntax and must be checked by the compiler, and *axioms*, which express semantics and must not be checked by the compiler.
 
 
 ### Language concepts
 
-Language concepts are intrinsic to the C++ programming language. [Stroustrup12](#Stroustrup12) §3.2, [Niebler15](#Niebler15) §19.2
+Language concepts are intrinsic to the C++ programming language. [Stroustrup12](#Stroustrup12) §3.2, [Niebler16](#Niebler16) §19.2
 
 
 ##### Assignable
@@ -115,9 +188,10 @@ Language concepts are intrinsic to the C++ programming language. [Stroustrup12](
 
     template <class T, class U>
     concept bool Assignable() {
-        return Common<T, U>() && requires(T&& a, U&& b) {
-            { std::forward<T>(a) = std::forward<U>(b) } -> Same<T&>;
-        };
+        return CommonReference<const T&, const U&>() &&
+            requires(T&& t, U&& u) {
+                { std::forward<T>(t) = std::forward<U>(u) } -> Same<T&>;
+            };
     }
 
 
@@ -136,7 +210,7 @@ Language concepts are intrinsic to the C++ programming language. [Stroustrup12](
     concept bool Swappable() {
         return Swappable<T>() &&
             Swappable<U>() &&
-            Common<T, U>() &&
+            CommonReference<const T&, const U&>() &&
             requires(T&& t, U&& u) {
                 ranges::swap(std::forward<T>(t), std::forward<U>(u));
                 ranges::swap(std::forward<U>(u), std::forward<T>(t));
@@ -151,7 +225,7 @@ The following concepts classify fundamental types. Their semantics are fully des
 
 ##### Integral
 
-The `Integral` concept is defined by the type trait `is_integral<T>::value`.
+The `Integral` concept is defined by the type trait `is_integral<T>`.
 
 **C++ definition:**
 
@@ -269,6 +343,24 @@ The `ConvertibleTo` concept expresses the requirement that a type `T` can be imp
     ConvertibleTo<Derived, Base>           // is true: derived types can be converted to base types
 
 
+##### CommonReference
+
+The `CommonReference` concept expresses that for two types T and U, if `common_reference_t<T, U>` is well-formed and denotes a type `C` such that both `ConvertibleTo<T, C>()` and `ConvertibleTo<U, C>()` are satisfied, then `T` and `U` share a common reference type, `C`. Note: `C` could be the same as `T`, or `U`, or it could be a different type. `C` may be a reference type. `C` need not be unique.
+
+**C++ definition:**
+
+    template <class T, class U>
+    concept bool CommonReference() {
+        return requires(T (&t)(), U (&u)()) {
+            typename common_reference_t<T, U>;
+            typename common_reference_t<U, T>;
+            requires Same<common_reference_t<T, U>, common_reference_t<U, T>>();
+            common_reference_t<T, U>(t());
+            common_reference_t<T, U>(u());
+        };
+    }
+
+
 ##### Common
 
 The `Common` concept expresses that two types `T` and `U` can both be unambiguously converted to a third type `C`, i.e. they share a *common type*. `C` can be the same type as `T` and `U` or it can be a different type:
@@ -281,12 +373,15 @@ The `Common` concept expresses that two types `T` and `U` can both be unambiguou
 
     template <class T, class U>
     concept bool Common() {
-        return requires (T t, U u) {
-            typename std::common_type_t<T, U>;
-            typename std::common_type_t<U, T>;
-            requires Same<std::common_type_t<U, T>, std::common_type_t<T, U>>();
-            std::common_type_t<T, U>(std::forward<T>(t));
-            std::common_type_t<T, U>(std::forward<U>(u));
+        return CommonReference<const T&, const U&>() &&
+            requires (T (&t)(), U (&u)()) {
+            typename common_type_t<T, U>;
+            typename common_type_t<U, T>;
+            requires Same<common_type_t<U, T>, common_type_t<T, U>>();
+            common_type_t<T, U>(t(t));
+            common_type_t<T, U>(u(u));
+            requires CommonReference<
+                add_lvalue_reference_t<common_type_t<T, U>>, common_reference_t<add_lvalue_reference_t<const T>, add_lvalue_reference_t<const U>>>();
         };
     }
 
@@ -375,10 +470,10 @@ Foundational concepts form the basis of a style of programming or are needed to 
     template <class T>
     concept bool CopyConstructible() {
         return MoveConstructible<T>() &&
-            Constructible<T, const std::remove_cv_t<T>&>() &&
-            ConvertibleTo<std::remove_cv_t<T>&, T>() &&
-            ConvertibleTo<const std::remove_cv_t<T>&, T>() &&
-            ConvertibleTo<const std::remove_cv_t<T>&&, T>();
+            Constructible<T, const remove_cv_t<T>&>() &&
+            ConvertibleTo<remove_cv_t<T>&, T>() &&
+            ConvertibleTo<const remove_cv_t<T>&, T>() &&
+            ConvertibleTo<const remove_cv_t<T>&&, T>();
     }
 
 
@@ -452,9 +547,9 @@ The ability to compare objects for equality is described by the
 
 where the `eq(a, b)` function implies that `a` and `b` represent the same abstract entity (not necessarily representational or member-wise equality). Examples from the standard library include: [Stroustrup12](#Stroustrup12) §3.1.1
 
-- Two tuples are equal if and only if they have the same number of sub-objects and all of their sub-objects compare equal using `==`.
-- Two vectors are equal if and only if they have the same size and contain the same elements as if compared using the `equal` algorithm (which compares using `==`.
-- Two complex numbers are equal if and only if they have equal real and imaginary components.
+- Two tuples are equal iff they have the same number of sub-objects and all of their sub-objects compare equal using `==`.
+- Two vectors are equal iff they have the same size and contain the same elements as if compared using the `equal` algorithm (which compares using `==`.
+- Two complex numbers are equal iff they have equal real and imaginary components.
 
 Let `t` and `u` be objects of types `T` and `U`. `WeaklyEqualityComparable<T, U>()` is satisfied iff:
 
@@ -466,12 +561,12 @@ Let `t` and `u` be objects of types `T` and `U`. `WeaklyEqualityComparable<T, U>
 **C++ definition:**
 
     template <class T, class U>
-    concept bool WeaklyEqualityComparable() {
+    concept bool WeaklyEqualityComparable() { 
         return requires(const T t, const U u) {
-            { t == u } -> Boolean;
-            { u == t } -> Boolean;
-            { t != u } -> Boolean;
-            { u != t } -> Boolean;
+            { t == u } -> Boolean; // not required to be equality preserving
+            { u == t } -> Boolean; // not required to be equality preserving
+            { t != u } -> Boolean; // not required to be equality preserving
+            { u != t } -> Boolean; // not required to be equality preserving
         };
     }
     
@@ -489,7 +584,7 @@ Let `t` and `u` be objects of types `T` and `U`. `WeaklyEqualityComparable<T, U>
             WeaklyEqualityComparable<T, U>();
     }
 
-The distinction between `EqualityComparable<T, U>()` and `WeaklyEqualityComparable<T, U>()` is purely semantic.
+The distinction between `EqualityComparable<T, U>()` and `WeaklyEqualityComparable<T, U>()` is purely semantic. The requirement that the expression a == b is equality preserving implies that == is reflexive, transitive, and symmetric.
 
 **Example implementation:**
 
@@ -568,7 +663,7 @@ The `Regular` concept is the union of the `Semiregular` and `EqualityComparable`
     template <class T>
     concept bool Regular() {
         return Semiregular<T>() &&
-        EqualityComparable<T>();
+            EqualityComparable<T>();
     }
 
 
@@ -665,12 +760,12 @@ floating point value, and many types’ moved-from states are not well-formed. T
 
 ### Callable concepts
 
-Callable concepts describe requirements on function types. [Stroustrup12](#Stroustrup12) §3.4
+Callable concepts describe requirements on function objects and their arguments. [Stroustrup12](#Stroustrup12) §3.4
 
 
-##### Callable
+##### Invocable
 
-The `Callable` concept describes a type whose objects can be called over a (possibly empty) sequence of arguments. `Callable`s are not `Semiregular` types; they may not exhibit the full range of capabilities as built-in value types. Minimally, they can be expected to be copy- and move-constructible but not copy- and move-assignable:
+The `Invocable` concept describes a type whose objects can be called over a (possibly empty) sequence of arguments. `Invocable`s are not `Semiregular` types; they may not exhibit the full range of capabilities as built-in value types. Minimally, they can be expected to be copy- and move-constructible but not copy- and move-assignable:
 
     Object:
         requirement: T* == &a (an object of this type can have its address taken and the result is a pointer to T)
@@ -690,53 +785,53 @@ The `Callable` concept describes a type whose objects can be called over a (poss
         requirement: T* == { new T }
         requirement: delete new T
     
-    Callable:
+    Invocable:
         requirement: ResultType<F f, Args args...> == f(args...) (callable with arguments)
         axiom: not_equality_preserving(f(args)) (not required to preserve equality)
 
 **C++ definition:**
 
     template <class F, class...Args>
-    concept bool Callable() {
+    concept bool Invocable() {
         return CopyConstructible<F>() &&
-            requires (F f, Args&&...args) {
+            requires (F f, Args&& ...args) {
                 invoke(f, std::forward<Args>(args)...); // not required to be equality preserving
             };
     }
 
-Since the invoke function call expression is not required to be equality-preserving, a function that generates random numbers may satisfy `Callable`.
+Since the invoke function call expression is not required to be equality-preserving, a function that generates random numbers may satisfy `Invocable`.
 
 
-##### RegularCallable
+##### RegularInvocable
 
-The `RegularCallable` concept describes a `Callable` that is equality-preserving, i.e. they have predictable and reasonable side-effects:
+The `RegularInvocable` concept describes a `Invocable` that is equality-preserving, i.e. they have predictable and reasonable side-effects:
 
-    Callable<F, Args...>
+    Invocable<F, Args...>
     axiom: equality_preserving(f(args))
 
 **C++ definition:**
 
     template <class F, class...Args>
-    concept bool RegularCallable() {
-        return Callable<F, Args...>();
+    concept bool RegularInvocable() {
+        return Invocable<F, Args...>();
     }
 
-Since the invoke function call expression is required to be equality-preserving, a function that generates random numbers does not satisfy `RegularCallable`-
+Since the invoke function call expression is required to be equality-preserving, a function that generates random numbers does not satisfy `RegularInvocable`-
 
 
 ##### Predicate
 
-The `Predicate` concept describes a `RegularCallable` whose return type is `ConvertibleTo` bool:
+The `Predicate` concept describes a `RegularInvocable` whose return type is `ConvertibleTo` bool:
 
-    RegularCallable<P, Args...>
+    RegularInvocable<P, Args...>
     ConvertibleTo<ResultType<P, Args...>, bool>
 
 **C++ definition:**
 
     template <class F, class...Args>
     concept bool Predicate() {
-        return RegularCallable<F, Args...>() &&
-            Boolean<std::result_of_t<F&(Args...)>>();
+        return RegularInvocable<F, Args...>() &&
+            Boolean<result_of_t<F&(Args...)>>();
     }
 
 
@@ -773,8 +868,8 @@ In summary, a `Relation` can be defined on different types if:
     concept bool Relation() {
         return Relation<R, T>() &&
             Relation<R, U>() &&
-            Common<T, U>() &&
-            Relation<R, std::common_type_t<T, U>>() &&
+            CommonReference<const T&, const U&>() &&
+            Relation<R, common_reference_t<const T&, const U&>>() &&
             Predicate<R, T, U>() &&
             Predicate<R, U, T>();
     }
@@ -805,45 +900,17 @@ A `Relation` satisfies `StrictWeakOrder` iff it imposes a *strict weak ordering*
 
 #### Operations
 
-The following function concepts are related to numeric operations. An operation is a `RegularCallable` with a homogenous domain whose result type is convertible to its domain type. [Stroustrup12](#Stroustrup12) §3.4.2
+The following function concepts are related to numeric operations. An operation is a `RegularInvocable` with a homogenous domain whose result type is convertible to its domain type. [Stroustrup12](#Stroustrup12) §3.4.2
 
 
 ##### UnaryOperation
 
-The `UnaryOperation` concept describes a `RegularCallable` with one argument and a result type that is `ConvertibleTo` the type of the argument.
-
-**C++ definition:**
-
-    template <class Op, class T>
-    concept bool UnaryOperation() {
-    return RegularCallable<Op, T>() &&
-        ConvertibleTo<std::result_of_t<Op(T)>, T>();
-    }
+The `UnaryOperation` concept describes a `RegularInvocable` with one argument and a result type that is `ConvertibleTo` the type of the argument.
 
 
 ##### BinaryOperation
 
-The `BinaryOperation` concept describes a `RegularCallable` with two arguments that share a `Common` type, and a result type that is `ConvertibleTo` the `Common` type of the argument.
-
-**C++ definition:**
-
-    template <typename Op, typename T>
-    concept bool BinaryOperation() {
-        return RegularCallable<Op, T, T>() &&
-            ConvertibleTo<std::result_of_t<Op(T, T)>, T>();
-    }
-    
-    template <class Op, class T, class U>
-    concept bool BinaryOperation() {
-        return BinaryOperation<Op, T>() &&
-            BinaryOperation<Op, U>() &&
-            Common<T, U>() &&
-            BinaryOperation<Op, Common<T, U>>() &&
-            requires (Op op, T a, U b) {
-                { op(a, b) } -> std::common_type_t<T, U>();
-                { op(b, a) } -> std::common_type_t<T, U>();
-        };
-    }
+The `BinaryOperation` concept describes a `RegularInvocable` with two arguments that share a `Common` type, and a result type that is `ConvertibleTo` the `Common` type of the argument.
 
 
 ### Iterator concepts
@@ -858,27 +925,126 @@ Iterator properties deal with reading values from and writing values to iterator
 
 ##### Readable
 
-The `Readable` concept defines the basic properties of *input iterators*; it states what it means for a type to be readable.
+defines the basic properties of *input iterators*; it states what it means for a type to be readable. The `Readable` concept is satisfied by types that are readable by applying operator*, including pointers, smart pointers, and iterators.
 
     requirement: const ValueType<I>& = *i (the type has a value that can be read by dereferencing)
+
+**C++ definition:**
+
+    template <class T>
+        concept bool Readable() {
+            return Movable<T>(); &&
+                DefaultConstructible<I>() &&
+                requires(const I& i) {
+                    typename value_type_t<I>;
+                    typename reference_t<I>;
+                    typename rvalue_reference_t<I>;
+                    { *i } -> Same<reference_t<I>>;
+                    { ranges::iter_move(i) } -> Same<rvalue_reference_t<I>>;
+                } &&
+                CommonReference<reference_t<I>, value_type_t<I>&>() &&
+                CommonReference<reference_t<I>, rvalue_reference_t<I>>() &&
+                CommonReference<rvalue_reference_t<I>, const value_type_t<I>&>() &&
+                Same<common_reference_t<reference_t<I>, value_type_t<I>>, value_type_t<I>>() &&
+                Same<common_reference_t<rvalue_reference_t<I>, value_type_t<I>>, value_type_t<I>>();
+        }
 
 
 ##### Writable
 
-The `Writable` concept describes a requirement for writing a value to a dereferenced iterator.
+The `Writable` concept specifies the requirements for writing a value into an iterator's referenced object.
 
     requirement: *o = value
     axiom: Readable<Out> && Same<ValueType<Out>, T> => (is_valid(*o = value) => (*o = value, eq(*o, value)))
 
+**C++ definition:**
+
+    template <class Out, class T>
+    concept bool Writable() {
+        return Semiregular<Out>() &&
+            requires(Out o, T&& t) {
+                *o = std::forward<T>(t); // not required to be equality preserving
+            };
+    }
+
 
 ##### IndirectlyMovable
 
-The `IndirectlyMovable` concept describes the move relationship between the values of an input iterator `I` and an output iterator `Out`. For an input iterator `in` and an output iterator `out`,`IndirectlyMovable` requires that `*out = move(*in)`.
+The `IndirectlyMovable` concept specifies the relationship between a `Readable` type and a `Writable` type between which values may be moved. For an input iterator `in` and an output iterator `out`,`IndirectlyMovable` requires that `*out = move(*in)`.
+
+The `IndirectlyMovableStorable` concept augments `IndirectlyMovable` with additional requirements enabling the transfer to be performed through an intermediate object of the `Readable` type's value type.
+
+**C++ definition:**
+
+    template <class In, class Out>
+    concept bool IndirectlyMovable() {
+        return Readable<In>() && Writable<Out, rvalue_reference_t<In>>();
+    }
+    
+    template <class In, class Out>
+    concept bool IndirectlyMovableStorable() {
+        return IndirectlyMovable<In, Out>() &&
+            Writable<Out, value_type_t<In>>() &&
+            Movable<value_type_t<In>>() &&
+            Constructible<value_type_t<In>, rvalue_reference_t<In>>() &&
+            Assignable<value_type_t<In>&, rvalue_reference_t<In>>();
+    }
 
 
 ##### IndirectlyCopyable
 
-The `IndirectlyMovable` concept describes the copy relationship between the values of an input iterator `I` and an output iterator `Out`. For an input iterator `in` and an output iterator `out`, `IndirectlyCopyable` requires that `*out = *in`.
+The `IndirectlyMovable` concept specifies the relationship between a `Readable` type and a `Writable` type between which values may be copied.
+
+The `IndirectlyCopyableStorable` concept augments `IndirectlyCopyable` with additional requirements enabling the transfer to be performed through an intermediate object of the `Readable` type’s value type. It also requires the capability to make copies of values.
+
+**C++ definition:**
+
+    template <class In, class Out>
+    concept bool IndirectlyCopyable() {
+        return Readable<In>() && Writable<Out, reference_t<In>>();
+    }
+    
+    template <class In, class Out>
+    concept bool IndirectlyCopyableStorable() {
+        return IndirectlyCopyable<In, Out>() &&
+            Writable<Out, const value_type_t<In>&>() &&
+            Copyable<value_type_t<In>>() &&
+            Constructible<value_type_t<In>, reference_t<In>>() &&
+            Assignable<value_type_t<In>&, reference_t<In>>();
+    }
+
+
+##### IndirectlySwappable
+
+The `IndirectlySwappable` concept specifies a swappable relationship between the values referenced by two `Readable` types.
+
+Given an object `i1` of type `I1` and an object `i2` of type `I2`, `IndirectlySwappable<I1, I2>()` is satisfied if after `ranges::iter_swap(i1, i2)`, the value of `*i1` is equal to the value of `*i2` before the call, and vice
+versa.
+
+**C++ definition:**
+
+    template <class I1, class I2 = I1>
+    concept bool IndirectlySwappable() {
+        return Readable<I1>() && Readable<I2>() &&
+            requires(const I1 i1, const I2 i2) {
+            ranges::iter_swap(i1, i2);
+            ranges::iter_swap(i2, i1);
+            ranges::iter_swap(i1, i1);
+            ranges::iter_swap(i2, i2);
+        };
+    }
+
+
+##### IndirectlyComparable
+
+The `IndirectlyComparable` concept specifies the common requirements of algorithms that compare values from two different sequences.
+
+**C++ definition:**
+
+    template <class I1, class I2, class R = equal_to<>, class P1 = identity, class P2 = identity>
+    concept bool IndirectlyComparable() {
+        return IndirectRelation<R, projected<I1, P1>, projected<I2, P2>>();
+    }
 
 
 #### Incrementable types
@@ -906,6 +1072,18 @@ The `WeaklyIncrementable` concept describes a `Semiregular` type that can be pre
             not_equality_preserving(i++)
             is_valid(++i) <=> is_valid(i++)
 
+**C++ definition:**
+
+    concept bool WeaklyIncrementable() {
+        return Semiregular<I>() &&
+            requires(I i) {
+                typename difference_type_t<I>;
+                requires SignedIntegral<difference_type_t<I>>();
+                { ++i } -> Same<I&>; // not required to be equality preserving
+                i++; // not required to be equality preserving
+            };
+    }
+
 
 ##### Incrementable
 
@@ -928,35 +1106,148 @@ The `Incrementable` concept describes a `Regular` type that can be pre- and post
             is_valid(++i) => (i == j => i++ = j)
             is_valid(++i) => (i == j => (i++, i) == ++j)
 
+**C++ definition:**
+
+    concept bool Incrementable() {
+        return Regular<I>() &&
+            WeaklyIncrementable<I>() &&
+            typename difference_type_t<I>;
+            requires (I i) {
+                { ++i } -> Same<I&>;
+            };
+    }
+
 
 #### Iterator abstractions
 
 The following concept describe iterator abstractions. [Stroustrup12](#Stroustrup12) §3.5.3
 
 
-##### WeakInputIterator
+##### Iterator
 
-The `WeakInputIterator` concept describes a `WeaklyIncrementable` and `Readable` type. It is used in weak ranges, which do not require the iterators to be `EqualityComparable`.
+The `Iterator` concept forms the basis of the iterator concept taxonomy; every iterator satisfies the `Iterator` requirements. This concept specifies operations for dereferencing and incrementing an iterator. Most algorithms will require additional operations to compare iterators with sentinels, to read or write values, or to provide a richer set of iterator movements.
 
-    requires: IteratorCategory<I>
-    requires: Derived<IteratorCategory<I>, weak_input_iterator_tag>
-    Readable<decltype(i++)> (dereferencing of post-increment result)
+**C++ definition:**
+
+    template <class I>
+    concept bool Iterator() {
+        return WeaklyIncrementable<I>() &&
+        requires(I i) {
+            { *i } -> auto&&; // Requires: i is dereferenceable
+        };
+    }
+
+The requirement that the result of dereferencing the iterator is deducible from
+auto&& means that it cannot be void.
+
+
+##### Sentinel
+
+The `Sentinel` concept specifies the relationship between an `Iterator` type and a `Semiregular` type whose values denote a range.
+
+**C++ definition:**
+
+    template <class S, class I>
+    concept bool Sentinel() {
+        return Semiregular<S>() &&
+            Iterator<I>() &&
+            WeaklyEqualityComparable<S, I>();
+    }
+
+Let `s` and `i` be values of type `S` and `I` such that `[i,s)` denotes a range. Types `S` and `I` satisfy `Sentinel<S, I>()` iff:
+
+- `i == s` is well-defined.
+- If `bool(i != s)` then `i` is dereferenceable and `[++i,s)` denotes a range.
+
+The domain of `==` can change over time. Given an iterator `i` and sentinel `s` such that `[i,s)` denotes a range and `i != s`, `[i,s)` is not required to continue to denote a range after incrementing any iterator equal to `i`. Consequently, `i == s` is no longer required to be well-defined.
+
+
+##### SizedSentinel
+
+The `SizedSentinel` concept specifies requirements on an `Iterator` and a `Sentinel` that allow the use of the `-` operator to compute the distance between them in constant time.
+
+The `SizedSentinel` concept is satisfied by pairs of `RandomAccessIterator`s and by counted iterators.
+
+**C++ definition:**
+
+    template <class S, class I>
+    constexpr bool disable_sized_sentinel = false;
+    
+    template <class S, class I>
+    concept bool SizedSentinel() {
+        return Sentinel<S, I>() &&
+            !disable_sized_sentinel<remove_cv_t<S>, remove_cv_t<I>> &&
+            requires(const I& i, const S& s) {
+                { s - i } -> Same<difference_type_t<I>>;
+                { i - s } -> Same<difference_type_t<I>>;
+            };
+    }
+
+Let `i` be an iterator of type `I`, and `s` a sentinel of type `S` such that `[i,s)` denotes a range. Let `N` be the smallest number of applications of `++i` necessary to make `bool(i == s)` be true. `SizedSentinel<S, I>()` is satisfied iff:
+
+- If `N` is representable by `difference_type_t<I>`, then `s - i` is well-defined and equals `N`.
+- If `N` is representable by `difference_type_t<I>`, then `i - s` is well-defined and equals `N`-
 
 
 ##### InputIterator
 
-The `InputIterator` concept describes a `WeakInputIterator` that is `EqualityComparable`. It does not require that increment is an equality-preserving operation, meaning that a range can only be traversed once.
+The `InputIterator` concept is a refinement of `Iterator`. It defines requirements for a type whose referenced values can be read (from the requirement for `Readable`) and which can be both pre- and post-incremented. `InputIterator`s are not required to satisfy `EqualityComparable`, and do not require that increment is an equality-preserving operation, meaning that a range can only be traversed once.
+
+**C++ definition:**
+
+    template <class I>
+    concept bool InputIterator() {
+        return Iterator<I>() &&
+            Readable<I>() &&
+            requires(I i, const I ci) {
+                typename iterator_category_t<I>;
+                requires DerivedFrom<iterator_category_t<I>, input_iterator_tag>();
+                { i++ } -> Readable; // not required to be equality preserving
+                requires Same<value_type_t<I>, value_type_t<decltype(i++)>>();
+                { *ci } -> const value_type_t<I>&;
+            };
+    }
+
+
+##### OutputIterator
+
+The `OutputIterator` concept is a refinement of `Iterator`. It defines requirements for a type that can be used to write values (from the requirement for `Writable`) and which can be both pre- and post-incremented. However, output iterators are not required to satisfy `EqualityComparable`.
+
+Algorithms on output iterators should never attempt to pass through the same iterator twice. They should be single pass algorithms.
+
+**C++ definition:**
+
+    template <class I, class T>
+    concept bool OutputIterator() {
+        return Iterator<I>() && Writable<I, T>();
+    }
 
 
 ##### ForwardIterator
 
-The `ForwardIterator` concept describes an `InputIterator` that is `Incrementable`. Because its increment operation is equality-preserving, it permits multiple passes over a range.
+The `ForwardIterator` concept refines `InputIterator`, adding equality comparison. Because its increment operation is equality-preserving, it permits multiple passes over a range.
+
+**C++ definition:**
+
+    template <class I>
+    concept bool ForwardIterator() {
+    return InputIterator<I>() &&
+        DerivedFrom<iterator_category_t<I>, forward_iterator_tag>() &&
+        Incrementable<I>() &&
+        Sentinel<I, I>();
+    }
+
+Two dereferenceable iterators `a` and `b` of type `X` offer the multi-pass guarantee iff:
+
+- `a == b` implies `++a == ++b`
+- The expression `([](X x){++x;}(a), *a)` is equivalent to the expression `*a`.
+
+The requirement that `a == b` implies `++a == ++b` (which is not true for weaker iterators) and the removal of the restrictions on the number of assignments through a mutable iterator (which applies to output iterators) allow the use of multi-pass one-directional algorithms with forward iterators.
 
 
 ##### BidirectionalIterator
 
-The `BidirectionalIterator` concept describes a `ForwardIterator` that supports the decrement operation. It abstracts the traversal of doubly linked lists.
-
+The `BidirectionalIterator` concept refines `ForwardIterator`, and adds the ability to move an iterator backward as well as forward.
    
     Pre-decrement:
         requires: I& == --i
@@ -974,10 +1265,22 @@ The `BidirectionalIterator` concept describes a `ForwardIterator` that supports 
             is_valid(++i) => (is_valid(--(++i)) && (i == j => --(++i) == j))
             is_valid(--i) => (is_valid(++(--i)) && (i == j => ++(--i) == j))
 
+**C++ definition:**
+
+    template <class I>
+    concept bool BidirectionalIterator() {
+        return ForwardIterator<I>() &&
+            DerivedFrom<iterator_category_t<I>, bidirectional_iterator_tag>() &&
+            requires(I i) {
+                { --i } -> Same<I&>;
+                { i-- } -> Same<I>;
+            };
+    }
+
 
 ##### RandomAccessIterator
 
-The `RandomAccessIterator` concept describes a `BidirectionalIterator` that is also `StrictTotallyOrdered`. It allows constance advancement some number of steps in either direction. The distance between `RandomAccessIterator`s can also be computed in constant time by subtracting two values.
+The `RandomAccessIterator` concept refines `BidirectionalIterator` and adds support for constant-time advancement with `+=`, `+`, `-=`, and `-`, and the computation of distance in constant time with `-`. Random access iterators also support array notation via subscripting.
 
     Difference:
         requires: DifferenceType<I> == i - j
@@ -1017,6 +1320,24 @@ The `RandomAccessIterator` concept describes a `BidirectionalIterator` that is a
             requires: ValueType<I> = i[n]
             axiom: is_valid(i + n) && is_valid(*(i + n)) => i[n] == *(i + n)
 
+**C++ definition:**
+
+    template <class I>
+    concept bool RandomAccessIterator() {
+        return BidirectionalIterator<I>() &&
+            DerivedFrom<iterator_category_t<I>, random_access_iterator_tag>() &&
+            StrictTotallyOrdered<I>() &&
+            SizedSentinel<I, I>() &&
+            requires(I i, const I j, const difference_type_t<I> n) {
+                { i += n } -> Same<I&>;
+                { j + n } -> Same<I>;
+                { n + j } -> Same<I>;
+                { i -= n } -> Same<I&>;
+                { j - n } -> Same<I>;
+                { j[n] } -> Same<reference_t<I>>;
+            };
+    }
+
 
 ### Rearrangements
 
@@ -1025,17 +1346,43 @@ Rearrangements group together iterator requirements of algorithm families. [Stro
 
 ##### Permutable
 
-The `Permutable` concept describes a requirement for permuting or rearranging the elements of an iterator range. It requires a `Semiregular` value type and `IndirectlyMovable` `ForwardIterators`.
+The `Permutable` concept specifies the common requirements of algorithms that reorder elements in place by moving or swapping them.
+
+**C++ definition:**
+
+    template <class I>
+    concept bool Permutable() {
+        return ForwardIterator<I>() &&
+            IndirectlyMovableStorable<I, I>() &&
+            IndirectlySwappable<I, I>();
+    }
 
 
 ##### Mergeable
 
-The `Mergeable` concept describes the requirements of algorithms that merge sorted sequences into an output sequence. It requires a `Permutable` iterator range and a `StrictTotallyOrdered` or a *strict weak order* `Relation` between value types.
+The `Mergeable` concept specifies the requirements of algorithms that merge sorted sequences into an output sequence by copying elements.
+
+    template <class I1, class I2, class Out,
+    class R = less<>, class P1 = identity, class P2 = identity>
+    concept bool Mergeable() {
+        return InputIterator<I1>() &&
+            InputIterator<I2>() &&
+            WeaklyIncrementable<Out>() &&
+            IndirectlyCopyable<I1, Out>() &&
+            IndirectlyCopyable<I2, Out>() &&
+            IndirectStrictWeakOrder<R, projected<I1, P1>, projected<I2, P2>>();
+    }
 
 
 ##### Sortable
 
-The `Sortable` concept describes the requirements of algorithms that permute sequences of iterators into an ordered sequence. It requires a `ForwardIterator` and a `StrictTotallyOrdered` or a *strict weak order* `Relation` between value types.
+The `Sortable` concept specifies the common requirements of algorithms that permute sequences into ordered sequences (e.g., `std::sort`).
+
+    template <class I, class R = less<>, class P = identity>
+    concept bool Sortable() {
+        return Permutable<I>() &&
+        IndirectStrictWeakOrder<R, projected<I, P>>();
+    }
 
 
 References
@@ -1055,12 +1402,17 @@ http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2013/n3580.pdf
 "A concept design for the STL", ISO N3551
 http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2012/n3351.pdf
 
-<a name="ISO15"></a>
-[ISO15]
-"Programming Languages — C++ Extensions for Concepts", ISO N4549
-http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2015/n4549.pdf
+<a name="Sutton16"></a>
+[Sutton16]
+"Working Draft, C++ Extensions for Concepts", ISO N4553
+http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2016/n4630.pdf
 
-<a name="Niebler15"></a>
-[Niebler15]
-"Working Draft, C++ Extensions for Ranges", ISO N4569
-http://open-std.org/JTC1/SC22/WG21/docs/papers/2016/n4569.pdf
+<a name="Niebler16"></a>
+[Niebler16]
+"Programming Languages - C++ Extensions for Ranges", ISO N4622
+http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2016/n4622.pdf
+
+<a name="Stroustrup16"></a>
+[Stroustrup17]
+"Concepts: The Future of Generic Programming - or How to design good concepts and use them well"
+http://stroustrup.com/good_concepts.pdf
