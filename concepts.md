@@ -18,6 +18,10 @@ In the C++17 concepts TS [Sutton16](#Sutton16), template parameter types can be 
     template <typename C>
        requires Sortable<C>()
     void sort(C& container);
+
+    // Most general form with requires clause, alternative
+    template <typename C>
+    void sort(C& container) requires Sortable<C>();
     
     // Shorthand replacing typename
     template <Sortable C>
@@ -88,7 +92,7 @@ Multi-type constraints can easily be expressed using explicit form with conjunct
 Concept description mechanisms
 ------------------------------
 
-Before (and to some extent after) C++17, Several mechanisms dealing with types are needed to describe concepts: [Stepanov09](#Stepanov09) §1.7
+Several mechanisms dealing with types are needed to describe concepts: [Stepanov09](#Stepanov09) §1.7
 
 - Type attributes
 - Type functions
@@ -167,6 +171,64 @@ To match types to concepts, `static_assert` that the desired concept matches. [S
     
     class My_container { /* ... */ };
     static_assert(Random_access_iterator<My_container::iterator>);
+
+
+Matching functions to concepts
+------------------------------
+
+Roughly speaking, given the Concepts TS, C++ considers one function to be "better" than another using the following rules: [Overload16](#Overload16)
+
+1. Functions requiring fewer or "cheaper" conversions of the arguments are better than those requiring more or costlier conversions.
+2. Non-template functions are better than function template specializations.
+3. One function template specialization is better than another if its parameter types are more specialized. For example, `T*` is more specialized than `T`, and so is `vector<T>`, but `T*` is not more specialized than `vector<T>`, nor is the opposite true.
+4. If two functions cannot be ranked because they have equivalent conversions or are function template specializations with equivalent parameter types, then the better one is more constrained. Also, unconstrained functions are the least constrained.
+
+In other words, constraints act as a tie-breaker for the usual overloading rules in C++. The ordering of constraints (more constrained) is essentially determined by the comparing sets of requirements for each template to determine if one is a strict superset of another.
+
+If the difference between two concepts is purely semantic, overload resolution may still be ambiguous. This is the case for example with the standard `Input_iterator` and `Forward_iterator` concepts. To express that `Forward_iterator` is a more constrained concept, traditional tag dispatch (associating a tag class (an empty class in an inheritance hierarchy) with iterator type for the purpose of selecting appropriate overloads. That associated type is its `iterator_category`.
+
+**Example:**
+
+    template<typename I>
+    concept bool Input_iterator() {
+        return Regular<I>() &&
+            requires (I i) {
+                typename value_type_t<I>;
+                { *i } -> value_type_t<I> const&;
+                { ++i } -> I&;
+        };
+    }
+    
+    // Ambiguous
+    template<typename I>
+    concept bool Forward_iterator() {
+        return Input_iterator<I>();
+    }
+    
+    // More constrained
+    template<typename I>
+    concept bool Forward_iterator() {
+        return Input_iterator<I>() &&
+            requires {
+                typename iterator_category_t<I>;
+                requires Derived_from<I, forward_iterator_tag>();
+            };
+    }
+
+Alternative solutions include using an associated type trait, variable template, or even an extra operation.
+
+**Example:**
+
+    template<typename T>
+    constexpr bool is_forward_iterator_v = false;
+    
+    template<typename T>
+    constexpr bool is_forward_iterator_v<T*> = true;
+    
+    template<typename I>
+    concept bool Forward_iterator() {
+        return Input_iterator<I>() && is_forward_iterator_v<I*>;
+    }
 
 
 Concept definitions
@@ -1416,3 +1478,8 @@ http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2016/n4622.pdf
 [Stroustrup17]
 "Concepts: The Future of Generic Programming - or How to design good concepts and use them well"
 http://stroustrup.com/good_concepts.pdf
+
+<a name="Overload16"></a>
+[Overload16]
+"Overload 136 pp6-11 - Overloading with Concepts"
+https://accu.org/var/uploads/journals/Overload136.pdf
