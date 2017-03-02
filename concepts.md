@@ -10,7 +10,7 @@ The guidelines cover C++98, C++11, C++14, and C++17, with notes on differences b
 Template constraints
 --------------------
 
-In the C++17 concepts TS [Sutton16](#Sutton16), template parameter types can be constrained to satisfy concepts. There are three syntactic forms available. [Sutton13](#Sutton13) §2
+In the C++ concepts TS [Sutton17](#Sutton17), template parameter types can be constrained to satisfy concepts. There are three syntactic forms available. [Sutton13](#Sutton13) §2
 
 **Example:**
 
@@ -84,11 +84,28 @@ Multi-type constraints can easily be expressed using explicit form with conjunct
     template <Sequence S, Equality_comparable<Value_Type<S>> T>
     Iterator_type<S> find(S&& sequence, const T& value);
 
+Require only essential properties in a template's concepts. Requiring every operation used to be listed among the requirements makes the interface unstable. [Sutter17](#Sutter17) §T.41
+
+
+### Matching types to concepts
+
+To match types to concepts, `static_assert` that the desired concept matches. [Stroustrup17](#Stroustrup17) §5.5
+
+**Example:**
+
+    class My_number { /* ... */ };
+    static_assert(Number<My_number>);
+    static_assert(Group<My_number>);
+    static_assert(Someone_elses_number<My_number>);
+    
+    class My_container { /* ... */ };
+    static_assert(Random_access_iterator<My_container::iterator>);
+
 
 Concept description mechanisms
 ------------------------------
 
-Before (and to some extent after) C++17, Several mechanisms dealing with types are needed to describe concepts: [Stepanov09](#Stepanov09) §1.7
+Several mechanisms dealing with types are needed to describe concepts: [Stepanov09](#Stepanov09) §1.7
 
 - Type attributes
 - Type functions
@@ -127,16 +144,30 @@ A *type constructor* is a mechanism for creating a new type from one or more exi
 Concept design guidelines
 -------------------------
 
-Ideally, a concept represents a fundamental concept in some domain, hence the name "concept". A concept has semantics; it means something; it is not just a set of unrelated operations and types. [Stroustrup17](#Stroustrup17) §5
+Ideally, a concept represents a fundamental concept in some domain, hence the name "concept". A concept has semantics; it means something; it is not just a set of unrelated operations and types. Avoid "concepts" without meaningful semantics. [Stroustrup17](#Stroustrup17) §5, [Sutter17](#Sutter17) §T.20
 
-avoid "single property concepts". People sometimes get into trouble defining something like this: [Stroustrup17](#Stroustrup17) §5.1
+Specify axioms for concepts. Expressing its semantics in an informal, semi-formal, or formal way makes the concept comprehensible to readers and the effort to express it can catch conceptual errors. In general, axioms are not provable, and when they are the proof is often beyond the capability of a compiler. An axiom may not be general, but the template writer may assume that it holds for all inputs actually used (similar to a precondition). [Sutter17](#Sutter17) §T.22
+
+**Example:**
+
+    template <typename T>
+    // The operators +, -, *, and / for a number are assumed to follow the usual mathematical rules
+    // axiom(T a, T b) { a + b == b + a; a - a == 0; a * (b + c) == a * b + a * c; /*...*/ }
+    concept Number = requires(T a, T b) {
+        {a + b} -> T;   // the result of a + b is convertible to T
+        {a - b} -> T;
+        {a * b} -> T;
+        {a / b} -> T;
+    }
+
+Avoid "single property concepts". People sometimes get into trouble defining something like this: [Stroustrup17](#Stroustrup17) §5.1
 
     template <typename T>
     concept bool Addable = requires(T a, T b) { { a+b } -> T; };
 
 `Addable` is not a suitable concept for general use, it does not represent a fundamental user-level concept. If `Addable`, why not `Subtractable`? (`std::string` is not `Subtractable`, but `int*` is).
 
-The first step to design a good concept is to consider what is a complete (necessary and sufficient) set of properties (operations, types, etc.) to match the domain concept, taking into account the semantics of that domain concept. [Stroustrup17](#Stroustrup17) §5.2
+The first step to design a good concept is to consider what is a complete (necessary and sufficient) set of properties (operations, types, etc.) to match the domain concept, taking into account the semantics of that domain concept. [Stroustrup17](#Stroustrup17) §5.2, [Sutter17](#Sutter17) §T.21
 
 A standard generic programming technique has been to specify the requirements of an algorithm to be the absolute minimum. This is not what we do to design the most useful concepts. That kind of design leads to programs where:
 - Every algorithm has its own requirements (a variety that we cannot easily remember).
@@ -144,29 +175,33 @@ A standard generic programming technique has been to specify the requirements of
 - When we improve the implementation of an algorithm, we must change its requirements (part of its interface), potentially breaking code.
 
 In this direction lies chaos. Thus, the ideal is not "minimal requirements" but "requirements expressed in terms of fundamental and complete concepts". This puts a burden on the designers of types (to match concepts), but that leads to better types and to more flexible code.
-To design good concepts and to use concepts well, remember that an implementation isn’t a specification - someday, someone is likely to want to improve the implementation and ideally that is done without affecting the interface. Often, we cannot change an interface because doing so would break user code.
+To design good concepts and to use concepts well, remember that an implementation isn't a specification - someday, someone is likely to want to improve the implementation and ideally that is done without affecting the interface. Often, we cannot change an interface because doing so would break user code.
 To write maintainable and widely usable code we aim for semantic coherence, rather than minimalism for each concept and algorithm in isolation. [Stroustrup17](#Stroustrup17) §5.3
 
 Concepts that are too simple for general use and/or lack a clear semantics can also be used as building blocks for more complete concepts.
 Sometimes, we call such overly simple or incomplete concepts "constraints" to distinguish them from the "real concepts". [Stroustrup17](#Stroustrup17) §5.4
 
-In the rare case where two concepts are identical syntactically but differ semantically (e.g., `InputIterator` and `ForwardIterator` are almost indistinguishable), either disambiguate them by adding an operation or a member type or use a traits class in the implementation of operations on them. [Stroustrup17](#Stroustrup17) §8.5
+In the rare case where two concepts are identical syntactically but differ semantically (e.g., `InputIterator` and `ForwardIterator` are almost indistinguishable), either disambiguate them by adding an operation or a member type or use a traits class in the implementation of operations on them. [Stroustrup17](#Stroustrup17) §8.5, [Sutter17](#Sutter17) §T.24
 
-
-Matching types to concepts
---------------------------
-
-To match types to concepts, `static_assert` that the desired concept matches. [Stroustrup17](#Stroustrup17) §5.5
+Avoid complementary constraints. Functions with complementary requirements expressed using negation are brittle. [Sutter17](#Sutter17) §T.25
 
 **Example:**
 
-    class My_number { /* ... */ };
-    static_assert(Number<My_number>);
-    static_assert(Group<My_number>);
-    static_assert(Someone_elses_number<My_number>);
+    template<typename T>
+        requires !C<T> // bad
+    void f();
     
-    class My_container { /* ... */ };
-    static_assert(Random_access_iterator<My_container::iterator>);
+    template<typename T>
+        requires C<T>
+    void f();
+    
+    
+    template<typename T> // general template (good)
+    void f();
+    
+    template<typename T> // specialization by concept (good)
+        requires C<T>
+    void f();
 
 
 Concept definitions
@@ -641,7 +676,7 @@ Note that copy semantics do not preclude shallow copies. If they did, we might n
 Proper use of the `Semiregular` concept requires that it is evaluated over value types, not object types:
 
 - Constants (`const T`) and `constexpr` objects do not have `Semiregular` types since they cannot be assigned to.
-- Volatile types (`volatile T`) are not `Semiregular` since their objects’ states may by changed externally.
+- Volatile types (`volatile T`) are not `Semiregular` since their objects' states may by changed externally.
 - Reference types types are not `Semiregular` because the syntax used for copy construction does not actually create a copy; it binds a reference to an
 object.
 
@@ -755,7 +790,7 @@ The `StrictTotallyOrdered` concept requires The `EqualityComparable` concept plu
     }
 
 Not all arguments will be well-formed for a given type. For example, `NaN` is not a well-formed
-floating point value, and many types’ moved-from states are not well-formed. This does not mean that the type does not satisfy `StrictTotallyOrdered`.
+floating point value, and many types' moved-from states are not well-formed. This does not mean that the type does not satisfy `StrictTotallyOrdered`.
 
 
 ### Callable concepts
@@ -995,7 +1030,7 @@ The `IndirectlyMovableStorable` concept augments `IndirectlyMovable` with additi
 
 The `IndirectlyMovable` concept specifies the relationship between a `Readable` type and a `Writable` type between which values may be copied.
 
-The `IndirectlyCopyableStorable` concept augments `IndirectlyCopyable` with additional requirements enabling the transfer to be performed through an intermediate object of the `Readable` type’s value type. It also requires the capability to make copies of values.
+The `IndirectlyCopyableStorable` concept augments `IndirectlyCopyable` with additional requirements enabling the transfer to be performed through an intermediate object of the `Readable` type's value type. It also requires the capability to make copies of values.
 
 **C++ definition:**
 
@@ -1402,17 +1437,22 @@ http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2013/n3580.pdf
 "A concept design for the STL", ISO N3551
 http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2012/n3351.pdf
 
-<a name="Sutton16"></a>
-[Sutton16]
-"Working Draft, C++ Extensions for Concepts", ISO N4553
-http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2016/n4630.pdf
+<a name="Sutton17"></a>
+[Sutton17]
+"Working Draft, C++ Extensions for Concepts", ISO N4641
+http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2016/n4641.pdf
 
 <a name="Niebler16"></a>
 [Niebler16]
 "Programming Languages - C++ Extensions for Ranges", ISO N4622
 http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2016/n4622.pdf
 
-<a name="Stroustrup16"></a>
+<a name="Stroustrup17"></a>
 [Stroustrup17]
 "Concepts: The Future of Generic Programming - or How to design good concepts and use them well"
 http://stroustrup.com/good_concepts.pdf
+
+<a name="Sutter17"></a>
+[Sutter17]
+"C++ Core Guidelines - T: Templates and generic programming"
+http://isocpp.github.io/CppCoreGuidelines/CppCoreGuidelines#S-templates

@@ -251,10 +251,10 @@ Example: `std::vector`
         ValueClass& operator=(const ValueClass& rhs) {}
     
         // Move constructor (C++11): Public and non-virtual
-        ValueClass(ValueClass&& rhs) {}
+        ValueClass(ValueClass&& rhs) noexcept {}
     
         // Move assignment operator (C++11): Public and non-virtual
-        ValueClass& operator=(ValueClass&& rhs) {}
+        ValueClass& operator=(ValueClass&& rhs) noexcept {}
     
         // Destructor: Public and non-virtual [Meyers05] §7
         ~ValueClass() {}
