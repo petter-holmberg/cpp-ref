@@ -1109,7 +1109,8 @@ The relational operators are:
 - `operator<=`
 - `operator=>`
 
-C++ doesn't provide `operator==` automatically, but it can always be implemented as bitwise equality and as equality of all members. However, it should be implemented in a way that respects the computational basis for the type.
+C++ doesn't provide `operator==` automatically, but it can always be implemented as *representational* (bitwise) equality and as equality of all members. However, it should be implemented in a way that respects the abstract entities which the type models, assuming that it can be done efficiently. This is true *behavioral* equality. Otherwise, settle for the weaker representational equality. [Stepanov09](#Stepanov09) §1.2
+
 `operator!=` should always be defined together with `operator==` and is typically implemented in terms of `operator==`:
 
     inline bool operator==(const X& lhs, const X& rhs) { /* do actual comparison */ }
@@ -1122,9 +1123,9 @@ Standard algorithms such as `std::sort` and containers such as `std::set` expect
 Typically, `operator<` is provided and the other relational operators are implemented in terms of `operator<`.
 
     inline bool operator<(const X& lhs, const X& rhs) { /* do actual comparison */ }
-    inline bool operator>(const X& lhs, const X& rhs) {return rhs < lhs;}
-    inline bool operator<=(const X& lhs, const X& rhs) {return !(lhs > rhs);}
     inline bool operator>=(const X& lhs, const X& rhs) {return !(lhs < rhs);}
+    inline bool operator>(const X& lhs, const X& rhs) {return rhs < lhs;}
+    inline bool operator<=(const X& lhs, const X& rhs) {return !(rhs < lhs);}
 
 The `<utility>` namespace `std::rel_ops` defines template functions that derive their behavior from `operator==` and `operator<`. This avoids the necessity to declare all six relational operators for every complete type; By defining only `operator==` and `operator<`, and importing this namespace, all six operators will be defined for the type (they will not be selected by argument-dependent lookup when not importing it, though).
 Notice that using this namespace introduces these overloads for all types not defining their own. Still, because non-template functions take precedence over template functions, any of these operators may be defined with a different behavior for a specific type.
@@ -1149,7 +1150,17 @@ In C++11, `operator<` can be implemented easily for a class with many members us
         return lhs.a < rhs.a;
     }
     
+    // Correct but repetitious
+    inline bool operator<(const Rational& lhs, const Rational& rhs)
+    {
+        return lhs.a < rhs.a ||
+            (!(rhs.a < lhs.a) && lhs.b < rhs.b) ||
+            (!(rhs.b < lhs.b) && lhs.c < rhs.c);
+    }
+    
     // Correct and simple
+    #include <tuple>
+    
     inline bool operator<(const Rational& lhs, const Rational& rhs)
     {
         return std::tie(lhs.a, lhs.b, lhs.c) < std::tie(rhs.a, rhs.b, rhs.c);
