@@ -1672,18 +1672,66 @@ Classes designed using the NVI pattern (Non-Virtual Interface) can be useful for
 <a name="TypeErasure"></a>
 ### Type Erasure
 
-Type Erasure is a technique providing polymorphism for arbitrary classes, without making virtual functions or templates part of their interface. A wrapping class provides value semantics and a common interface.
+Type Erasure, or the Runtime-concept Idiom, is a technique providing polymorphism for arbitrary classes, without making virtual functions or templates part of their interface, and without burdening the client with inheritance, factories, class registration, and memory management. A wrapping class provides value semantics and a common interface.
 
 **Example implementation:**
 
-    class TypeErasure {
+    class TypeErasure { // Using unique_ptr, enables mutating functions
     public:
         // Templated constructor to allow arbitrary types.
         template <typename T>
-        explicit TypeErasure(T obj) : self_(std::make_shared<Model<T>>(std::move(obj))) {}
+        TypeErasure(T obj) : self_{std::make_unique<Model<T>>(std::move{obj})} {}
+    
+        TypeErasure(const TypeErasure& x) : self_{x.self_->copy_()} {}
+    
+        TypeErasure(TypeErasure&&) noexcept = default;
+    
+        TypeErasure& operator(const TypeErasure& x)
+        {
+            return *this = TypeErasure{x};
+        }
+    
+        TypeErasure& operator=(TypeErasure&& x) noexcept = default;
     
         // "Polymorphic" function.
         friend void show(const TypeErasure& obj) { obj.self_->show_(); }
+    
+    private:
+        // Abstract base class corresponding to the internal interface being enforced.
+        struct Concept {
+            virtual ~Concept() = default;
+    
+            virtual std::unique_ptr<Concept> copy_() const = 0;
+    
+            virtual void show_() const = 0;
+        };
+    
+        // Derived class that adapts the interface and holds the actual data.
+        template <typename T>
+        struct Model : Concept {
+            Model(T obj) : data_(std::move(obj)) {}
+    
+            std::unique_ptr<Concept> copy_() const override
+            { return std::make_unique<Model>(*this); }
+    
+            // Forwarding function
+            void show_() const override { show(data_); }
+    
+            T data_;
+        };
+    
+        std::unique_ptr<Concept> self_;
+    };
+    
+    class TypeErasure { // Using shared_ptr to const, elides copies
+    public:
+        // Templated constructor to allow arbitrary types.
+        template <typename T>
+        TypeErasure(T obj) : self_(std::make_shared<Model<T>>(std::move(obj))) {}
+    
+        // "Polymorphic" function.
+        friend void show(const TypeErasure& obj) { obj.self_->show_(); }
+    
     private:
         // Abstract base class corresponding to the internal interface being enforced.
         struct Concept {
@@ -1698,7 +1746,7 @@ Type Erasure is a technique providing polymorphism for arbitrary classes, withou
             explicit Model(T obj) : data_(std::move(obj)) {}
     
             // Forwarding function
-            void show_() const { show(data_); }
+            void show_() const override { show(data_); }
     
             T data_;
         };
