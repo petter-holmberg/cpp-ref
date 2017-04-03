@@ -202,7 +202,7 @@ The Strong Guarantee can often be implemented via copy-and-swap, but the Strong 
 Instead of copy-and-swap, consider a utility template for the Strong Guarantee:
 
     template <typename T>
-    C& strong_assign(C& dest, C src) {
+    T& strong_assign(T& dest, T src) {
         using std::swap;
         swap(dest, src);
         return dest;
@@ -248,13 +248,13 @@ Example: `std::vector`
         ValueClass(const ValueClass& rhs) {}
     
         // Copy assignment operator with value semantics: Public and non-virtual
-        ValueClass& operator=(const ValueClass& rhs) {}
+        ValueClass& operator=(const ValueClass& rhs) { /*...*/ return *this; }
     
         // Move constructor (C++11): Public and non-virtual
         ValueClass(ValueClass&& rhs) noexcept {}
     
         // Move assignment operator (C++11): Public and non-virtual
-        ValueClass& operator=(ValueClass&& rhs) noexcept {}
+        ValueClass& operator=(ValueClass&& rhs) noexcept { /*...*/ return *this; }
     
         // Destructor: Public and non-virtual [Meyers05] §7
         ~ValueClass() {}
@@ -321,7 +321,7 @@ Base classes are the building blocks of class hierarchies. They establish interf
     class BaseClassCpp11 {
     public:
         // Destructor allowing polymorphic deletion
-        virtual ~BaseClass() = default;
+        virtual ~BaseClassCpp11() = default;
     
         // Copy constructor
         BaseClassCpp11(const BaseClassCpp11&) = default; // or delete to disable
@@ -333,7 +333,7 @@ Base classes are the building blocks of class hierarchies. They establish interf
         BaseClassCpp11(BaseClassCpp11&&) = default; // or delete to disable
     
         // Move assignment operator
-        BaseClassCpp11& operator=(BaseClassCpp11&&) = default // or delete to disable
+        BaseClassCpp11& operator=(BaseClassCpp11&&) = default; // or delete to disable
     
         // Non-virtual functions, defining interface
      private:
@@ -415,17 +415,8 @@ Examples: `std::iterator_traits`, `std::numeric_limits`
         static const bool value = true;
     };
     
-    is_void<void>(); // true
-    is_void<int>();  // false
-    
-    // Traits class with typedef:
-    template <typename T>
-    struct collection_traits {
-        typedef std::vector<T> collection_type;
-    };
-    
-    SomeClass<collection_traits>() item;
-    SomeClass::collection_type items;
+    bool t = is_void<void>::value; // true
+    bool f = is_void<int>::value;  // false
 
 
 ### Functor classes
@@ -443,23 +434,24 @@ In C++11, `std::unary_function` and `std::binary_function` have been deprecated.
 
 **Example implementations:**
 
-    // Lightweight predicate functor
+    // Lightweight predicate functor, C++98
     template <typename T>
-    class Predicate : public std::unary_function<T, bool> {
+    class PredicateCpp98 : public std::unary_function<T, bool> {
+    public:
+        bool operator()(const T& value) const
+        { return value.fulfillsPredicate(); }
+    };
+    
+    // Lightweight predicate functor, C++11
+    template <typename T>
+    class PredicateCpp11 {
     public:
         bool operator()(const T& value) const
         { return value.fulfillsPredicate(); }
     };
     
     // Heavy polymorphic functor implemented using [Pimpl]
-    template <typename T>
-    class Functor : public std::unary_function<T, void> {
-    public:
-        void operator()(const T& value) const
-        { pimpl_->operator()(value); }
-    private:
-        FunctorImpl<T> *pimpl_;
-    };
+    template <typename T> class Functor;
     
     // The implementation class, holding state
     template <typename T>
@@ -473,6 +465,16 @@ In C++11, `std::unary_function` and `std::binary_function` have been deprecated.
         virtual void operator()(const T& value) const;
     
         friend class Functor<T>;
+    };
+    
+    // The actual functor used
+    template <typename T>
+    class Functor : public std::unary_function<T, void> {
+    public:
+        void operator()(const T& value) const
+        { pimpl_->operator()(value); }
+    private:
+        FunctorImpl<T>* pimpl_;
     };
 
 To accept a functor as argument, a function needs to be defined as a template:
@@ -493,7 +495,7 @@ Exceptions should be thrown by value and be caught by (const) reference. If re-t
 
 **Example implementation:**
 
-    class ExceptionClass : public std:exception {
+    class ExceptionClass : public std::exception {
     public:
         // No-fail constructor
         ExceptionClass() {}
@@ -553,12 +555,15 @@ Because you can mix and match policies, you can achieve a combinatorial set of b
     };
     
     typedef HelloWorld<OutputPolicyWriteToCout, LanguagePolicyEnglish> HelloWorldEnglish;
-    HelloWorldEnglish hello_world;
-    hello_world.run(); // prints "Hello, World!"
-    
     typedef HelloWorld<OutputPolicyWriteToCout, LanguagePolicyGerman> HelloWorldGerman;
-    HelloWorldGerman hello_world2;
-    hello_world2.run(); // prints "Hallo Welt!"
+    
+    void print() {
+        HelloWorldEnglish hello_world;
+        hello_world.run(); // prints "Hello, World!"
+    
+        HelloWorldGerman hello_world2;
+        hello_world2.run(); // prints "Hallo Welt!"
+    }
 
 
 ### Mixin classes
@@ -575,7 +580,7 @@ A C++ mixin class is a template class that is parameterized on its [Base class](
     
     template <typename T>
     class BoldMixin : public T {
-    protected:
+    public:
         void print()
         {
             cout << "<b>";
@@ -586,7 +591,7 @@ A C++ mixin class is a template class that is parameterized on its [Base class](
     
     template <typename T>
     class ItalicMixin : public T {
-    protected:
+    public:
         void print()
         {
             cout << "<i>";
@@ -595,7 +600,7 @@ A C++ mixin class is a template class that is parameterized on its [Base class](
         }
     };
     
-    ConcreteMessage<ItalicMixin<BoldMixin> > italicAndBold;
+    ItalicMixin<BoldMixin<ConcreteMessage>> italicAndBold;
     italicAndBold.print(); // Prints the concrete message in italic and bold.
 
 
@@ -761,7 +766,7 @@ In C++11, the keyword `default` is used to enable compiler-generated functions i
 
 **Example:**
 
-    Class Uncopyable {
+    class Uncopyable {
     public:
         Uncopyable(const Uncopyable&) = delete;
         Uncopyable& operator=(const Uncopyable&) = delete;
@@ -912,11 +917,11 @@ If a class has a reference member, it probably needs a copy constructor. [Strous
         NonSliceableComponents(const NonSliceableComponents& rhs)
         {
             // Deep-copy all components
-            for (list<NonSliceable*>::const_iterator it = rhs.components_.begin(); it != rhs.components_.end(); ++it)
+            for (vector<NonSliceable*>::const_iterator it = rhs.components_.begin(); it != rhs.components_.end(); ++it)
             { components_.push_back(it->clone()); }
         }
     private:
-        std::vector<NonSliceableComponent*> components_;
+        vector<NonSliceable*> components_;
     };
     
     struct NonSliceableComponent {
@@ -1489,7 +1494,7 @@ In C++11, for `unique_ptr` Pimpl pointers, declare special member functions in t
         struct FooImpl;
         shared_ptr<FooImpl> pimpl_;
     };
-
+    
     // Foo.cpp:
     struct FooImpl() {
         void bar()
@@ -1513,16 +1518,16 @@ This is achieved by creating classes inheriting from a base class template, spec
     struct Base {
         void interface()
         {
-            ...
+            /* ... */
             static_cast<Derived*>(this)->implementation();
-            ...
+            /* ... */
         }
     
         static void static_interface()
         {
-            ...
+            /* ... */
             Derived::static_implementation();
-            ...
+            /* ... */
         }
     
         // The default implementation may be (if exists) or should be (otherwise) overriden by inheriting in derived classes (see below)
@@ -1542,7 +1547,7 @@ This is achieved by creating classes inheriting from a base class template, spec
     struct Derived2 : Base<Derived2> {
         // This class overrides implementation()
         void implementation();
-
+    
         // ... and uses Base's variant of static_implementation()
         //static void static_implementation();
     };
@@ -1676,54 +1681,8 @@ Type Erasure, or the Runtime-concept Idiom, is a technique providing polymorphis
 
 **Example implementation:**
 
-    class TypeErasure { // Using unique_ptr, enables mutating functions
-    public:
-        // Templated constructor to allow arbitrary types.
-        template <typename T>
-        TypeErasure(T obj) : self_{std::make_unique<Model<T>>(std::move{obj})} {}
-    
-        TypeErasure(const TypeErasure& x) : self_{x.self_->copy_()} {}
-    
-        TypeErasure(TypeErasure&&) noexcept = default;
-    
-        TypeErasure& operator(const TypeErasure& x)
-        {
-            return *this = TypeErasure{x};
-        }
-    
-        TypeErasure& operator=(TypeErasure&& x) noexcept = default;
-    
-        // "Polymorphic" function.
-        friend void show(const TypeErasure& obj) { obj.self_->show_(); }
-    
-    private:
-        // Abstract base class corresponding to the internal interface being enforced.
-        struct Concept {
-            virtual ~Concept() = default;
-    
-            virtual std::unique_ptr<Concept> copy_() const = 0;
-    
-            virtual void show_() const = 0;
-        };
-    
-        // Derived class that adapts the interface and holds the actual data.
-        template <typename T>
-        struct Model : Concept {
-            Model(T obj) : data_(std::move(obj)) {}
-    
-            std::unique_ptr<Concept> copy_() const override
-            { return std::make_unique<Model>(*this); }
-    
-            // Forwarding function
-            void show_() const override { show(data_); }
-    
-            T data_;
-        };
-    
-        std::unique_ptr<Concept> self_;
-    };
-    
-    class TypeErasure { // Using shared_ptr to const, elides copies
+    // Using shared_ptr to const, elides copies    
+    class TypeErasure {
     public:
         // Templated constructor to allow arbitrary types.
         template <typename T>
@@ -1761,6 +1720,54 @@ Type Erasure, or the Runtime-concept Idiom, is a technique providing polymorphis
     // Free function required to type-erase objects of a user-defined class.
     void show(const UserDefined& obj)
     { std::cout << "Type is user-defined" << std::endl; }
+    
+    // Using unique_ptr, enables mutating functions
+    class TypeErasure {
+    public:
+        // Templated constructor to allow arbitrary types.
+        template <typename T>
+        TypeErasure(T obj) : self_{std::make_unique<Model<T>>(std::move(obj))} {}
+    
+        TypeErasure(const TypeErasure& x) : self_{x.self_->copy_()} {}
+    
+        TypeErasure(TypeErasure&&) noexcept = default;
+    
+        TypeErasure& operator=(const TypeErasure& x)
+        {
+            return *this = TypeErasure{x};
+        }
+    
+        TypeErasure& operator=(TypeErasure&& x) noexcept = default;
+    
+        // "Polymorphic" function.
+        friend void show(const TypeErasure& obj) { obj.self_->show_(); }
+    
+    private:
+        // Abstract base class corresponding to the internal interface being enforced.
+        struct Concept {
+            virtual ~Concept() = default;
+    
+            virtual std::unique_ptr<Concept> copy_() const = 0;
+    
+            virtual void show_() const = 0;
+        };
+    
+        // Derived class that adapts the interface and holds the actual data.
+        template <typename T>
+        struct Model : Concept {
+            Model(T obj) : data_(std::move(obj)) {}
+    
+            std::unique_ptr<Concept> copy_() const override
+            { return std::make_unique<Model>(*this); }
+    
+            // Forwarding function
+            void show_() const override { show(data_); }
+    
+            T data_;
+        };
+    
+        std::unique_ptr<Concept> self_;
+    };
 
 
 <a name="EBO"></a>
