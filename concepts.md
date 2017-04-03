@@ -282,6 +282,23 @@ Language concepts are intrinsic to the C++ programming language. [Stroustrup12](
 
 **C++ Defintion:**
 
+    // (Origin)    
+    template <typename T, typename U>
+    concept bool Assignable() {
+        return std::is_assignable<T, U>::value;
+    }
+    
+    template <typename T>
+    concept bool Move_assignable() {
+        return Assignable<T&, T&&>();
+    };
+    
+    template <typename T>
+    concept bool Copy_assignable() {
+        return Move_assignable<T>() && Assignable<T&, const T&>();
+    }
+    
+    // (Ranges TS)
     template <class T, class U>
     concept bool Assignable() {
         return CommonReference<const T&, const U&>() &&
@@ -295,6 +312,7 @@ Language concepts are intrinsic to the C++ programming language. [Stroustrup12](
 
 **C++ Defintion:**
 
+    // (Ranges TS)
     template <class T>
     concept bool Swappable() {
         return requires(T&& a, T&& b) {
@@ -500,6 +518,15 @@ Foundational concepts form the basis of a style of programming or are needed to 
 
 **C++ definition:**
 
+    // (Origin)
+    template <typename T>
+    concept bool Destructible() {
+        return requires (T* t) {
+            {t->~T(); };
+        }
+    }
+    
+    // (Ranges TS)
     template <class T>
     concept bool Destructible() {
         return requires (T t, const T ct, T* p) {
@@ -516,6 +543,13 @@ Foundational concepts form the basis of a style of programming or are needed to 
 
 **C++ definition:**
 
+    // (Origin)
+    template <typename T>
+    concept bool Constructible() {
+        return Destructible<T>() && std::is_constructible<T, Args...>::value;
+    }
+    
+    // (Ranges TS)
     template <class T, class... Args>
     concept bool __ConstructibleObject = // exposition only
         Destructible<T>() && requires (Args&&... args) {
@@ -539,6 +573,13 @@ Foundational concepts form the basis of a style of programming or are needed to 
 
 **C++ definition:**
 
+    // (Origin)
+    template <typename T>
+    concept bool Default_constructible() {
+        return Constructible<T>();
+    }
+    
+    // (Ranges TS)
     template <class T>
     concept bool DefaultConstructible() {
         return Constructible<T>() &&
@@ -552,6 +593,13 @@ Foundational concepts form the basis of a style of programming or are needed to 
 
 **C++ definition:**
 
+    // (Origin)
+    template <typename T>
+    concept bool Move_constructible() {
+        return Constructible<T, T&&>();
+    }
+    
+    // (Ranges TS)
     template <class T>
     concept bool MoveConstructible() {
         return Constructible<T, remove_cv_t<T>&&>() && 
@@ -563,6 +611,13 @@ Foundational concepts form the basis of a style of programming or are needed to 
 
 **C++ definition:**
 
+    // (Origin)
+    template <typename T>
+    concept bool Copy_constructible() {
+        return Move_constructible<T>() && Constructible<T, const T&>();
+    }
+    
+    // (Ranges TS)
     template <class T>
     concept bool CopyConstructible() {
         return MoveConstructible<T>() &&
@@ -577,6 +632,13 @@ Foundational concepts form the basis of a style of programming or are needed to 
 
 **C++ definition:**
 
+    // (Origin)
+    template <typename T>
+    concept bool Movable() {
+        return Move_constructible<T>() && Move_assignable<T>();
+    }
+    
+    // (Ranges TS)
     template <class T>
     concept bool Movable() {
         return MoveConstructible<T>() &&
@@ -589,6 +651,13 @@ Foundational concepts form the basis of a style of programming or are needed to 
 
 **C++ definition:**
 
+    // (Origin)
+    template <typename T>
+    concept bool Copyable() {
+        return Copy_constructible<T>() && Copy_assignable<T>();
+    }
+    
+    // (Ranges TS)
     template <class T>
     concept bool Copyable() {
         return CopyConstructible<T>() &&
@@ -603,6 +672,22 @@ The `Boolean` concept describes the requirements on a type that is used in Boole
 
 **C++ definition:**
 
+    // (Origin)
+    concept bool Conditional() {
+        return requires(T t) {
+            (bool)t; // Explicitly convertible
+        }
+    }
+    
+    concept bool Boolen() {
+        return Conditional<T>() &&
+            requires(T a, T b) {
+                { !a } -> Same<bool>();
+                { a && b } -> Same<bool>();
+                { a || b } -> Same<bool>();
+            };
+    }
+    
     template <class B>
     concept bool Boolean() {
         return MoveConstructible<B>() &&
@@ -656,6 +741,16 @@ Let `t` and `u` be objects of types `T` and `U`. `WeaklyEqualityComparable<T, U>
 
 **C++ definition:**
 
+    // (Origin)
+    template <typename T>
+    concept bool Equality_comparable() {
+        return requires(T a, T b) {
+            { a == b } -> Boolean;
+            { a != b } -> Boolean;
+        };
+    }
+    
+    // (Ranges TS)
     template <class T, class U>
     concept bool WeaklyEqualityComparable() { 
         return requires(const T t, const U u) {
@@ -743,6 +838,13 @@ object.
 
 **C++ definition:**
 
+    // (Origin)
+    template <typename T>
+    concept bool Semiregular() {
+        return Default_constructible<T>() && Copyable<T>();
+    }
+    
+    // (Ranges TS)
     template <class T>
     concept bool Semiregular() {
         return Copyable<T>() &&
@@ -756,6 +858,18 @@ The `Regular` concept is the union of the `Semiregular` and `EqualityComparable`
 
 **C++ definition:**
 
+    // (Origin)
+    template <typename T>
+    concept bool Regular() {
+        return Semiregular<T>() && Equality_comparable<T>();
+    }
+    
+    template <typename T>
+    concept bool Ordered() {
+        return Regular<T>() && Totally_ordered<T>();
+    }
+    
+    // (Ranges TS)
     template <class T>
     concept bool Regular() {
         return Semiregular<T>() &&
@@ -783,6 +897,24 @@ The `StrictTotallyOrdered` concept requires The `EqualityComparable` concept plu
 
 **C++ definition:**
 
+    // (Origin)
+    template <typename T>
+    concept bool Weakly_ordered()
+    {
+        return requires(T a, T b) {
+            { a < b } -> Boolean;
+            { a > b } -> Boolean;
+            { a <= b } -> Boolean;
+            { a >= b } -> Boolean;
+        }
+    }
+    
+    template <typename T>
+    concept bool Totally_ordered() {
+        return Equality_comparable<T>() && Weakly_ordered<T>();
+    }
+    
+    // (Ranges TS)
     template <class T>
     concept bool StrictTotallyOrdered() {
         return EqualityComparable<T>() &&
@@ -1522,3 +1654,9 @@ http://isocpp.github.io/CppCoreGuidelines/CppCoreGuidelines#S-templates
 [Overload16]
 "Overload 136 pp6-11 - Overloading with Concepts"
 https://accu.org/var/uploads/journals/Overload136.pdf
+
+[Origin libraries](https:/github.com/asutton/origin)
+
+[range-v3](https:/github.com/ericniebler/range-v3)
+
+[cmcstl2](https:/github.com/CaseyCarter/cmcstl2)
