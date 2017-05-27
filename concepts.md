@@ -1648,15 +1648,15 @@ http://stroustrup.com/good_concepts.pdf
 <a name="Sutter17"></a>
 [Sutter17]
 "C++ Core Guidelines - T: Templates and generic programming"
-http://isocpp.github.io/CppCoreGuidelines/CppCoreGuidelines#S-templates
+https://isocpp.github.io/CppCoreGuidelines/CppCoreGuidelines#S-templates
 
 <a name="Overload16"></a>
 [Overload16]
 "Overload 136 pp6-11 - Overloading with Concepts"
 https://accu.org/var/uploads/journals/Overload136.pdf
 
-[Origin libraries](https:/github.com/asutton/origin)
+[Origin libraries](https://github.com/asutton/origin)
 
-[range-v3](https:/github.com/ericniebler/range-v3)
+[range-v3](https://github.com/ericniebler/range-v3)
 
-[cmcstl2](https:/github.com/CaseyCarter/cmcstl2)
+[cmcstl2](https://github.com/CaseyCarter/cmcstl2)

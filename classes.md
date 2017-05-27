@@ -434,17 +434,17 @@ In C++11, `std::unary_function` and `std::binary_function` have been deprecated.
 
 **Example implementations:**
 
-    // Lightweight predicate functor, C++98
+    // Lightweight predicate functor, C++11
     template <typename T>
-    class PredicateCpp98 : public std::unary_function<T, bool> {
+    class PredicateCpp11 {
     public:
         bool operator()(const T& value) const
         { return value.fulfillsPredicate(); }
     };
     
-    // Lightweight predicate functor, C++11
+    // Lightweight predicate functor, C++98
     template <typename T>
-    class PredicateCpp11 {
+    class PredicateCpp98 : public std::unary_function<T, bool> {
     public:
         bool operator()(const T& value) const
         { return value.fulfillsPredicate(); }
@@ -1737,7 +1737,7 @@ Type Erasure, or the Runtime-concept Idiom, is a technique providing polymorphis
             return *this = TypeErasure{x};
         }
     
-        TypeErasure& operator=(TypeErasure&& x) noexcept = default;
+        TypeErasure& operator=(TypeErasure&&) noexcept = default;
     
         // "Polymorphic" function.
         friend void show(const TypeErasure& obj) { obj.self_->show_(); }
