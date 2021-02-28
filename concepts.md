@@ -90,7 +90,7 @@ The `auto` keyword can also be used to describe a completely unconstrained param
 
 **Example:**
 
-    concept bool Any = true; // Every type is an any (Concepts TS syntax)
+    concept bool Any = true; // Every type is an any
     
     void f(Any x, Any y); // x and y must take the same type
     void g(auto x, auto y); // x and y can be of different type
