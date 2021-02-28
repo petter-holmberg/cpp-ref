@@ -20,7 +20,7 @@ Concepts are defined as compile-time boolean expressions.
     template <typename T>
     concept Wip = "Requirements documented here as a string literal pending implementation";
 
-A *requires-expression* can be used inside a concept to express syntactic requirements on template arguments. There are four types of requirements.
+A *requires-expression* can be used inside a concept to express syntactic requirements on template arguments. There are four types of requirements. It can also be used as a standalone compile-time predicate.
 
 **Example:**
 
@@ -56,6 +56,10 @@ A *requires-expression* can be used inside a concept to express syntactic requir
     concept D = requires (T t) {
         requires C<decltype(+t)>; // requires sizeof(decltype(+t)) == 1
     };
+    
+    // Standalone predicate
+    template <typename T>
+    constexpr bool Has_member_fun = requires (T x) { { x.fun() } -> std::same_as<int>; };
 
 
 Template constraints
@@ -333,7 +337,7 @@ Avoid complementary constraints. Functions with complementary requirements expre
 
 Sometimes it is a good idea to avoid constraining class templates with concepts, as this disables the possibility to use an incomplete instance of the type in another class. A good example of this is the standard container classes. [ODwyer20](#ODwyer20)
 
-**Exmaple:**
+**Example:**
 
     template <std::regular T>
     class BadVector {
@@ -832,11 +836,6 @@ A `relation` is `strict_weak_order` iff it imposes a *strict weak ordering* on i
 References
 ----------
 
-<a name="ODwyer20"></a>
-[ODwyer20]
-"SFINAE special members or support incomplete types: Pick at most one"
-https://quuxplusone.github.io/blog/2020/02/05/vector-is-copyable-except-when-its-not/
-
 <a name="Sutton13"></a>
 [Sutton13]
 "Concepts Lite: Constraining Templates with Predicates", ISO N3551
@@ -860,6 +859,11 @@ http://stroustrup.com/good_concepts.pdf
 [Sutter17]
 "C++ Core Guidelines - T: Templates and generic programming"
 https://isocpp.github.io/CppCoreGuidelines/CppCoreGuidelines#S-templates
+
+<a name="ODwyer20"></a>
+[ODwyer20]
+"SFINAE special members or support incomplete types: Pick at most one"
+https://quuxplusone.github.io/blog/2020/02/05/vector-is-copyable-except-when-its-not/
 
 <a name="Overload16"></a>
 [Overload16]
