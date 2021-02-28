@@ -1,7 +1,7 @@
 C++ concepts quick reference
 ============================
 
-This document is a summary of proposed core C++ concepts and a collection of design guidelines for C++ classes and algorithms. It is intended to be used as a quick reference when designing new classes/algorithms or refactoring old ones.
+This document is a collection of design guidelines for C++ concepts and design guidelines for classes and algorithms using concepts. It is intended to be used as a quick reference when designing new concepts/classes/algorithms or refactoring old ones.
 For brevity and simplicity of use, it does not discuss at length the *whys* of the guidelines, but instead presents references to further reading about the subject.
 
 The guidelines cover C++20.
@@ -330,6 +330,32 @@ Avoid complementary constraints. Functions with complementary requirements expre
     template <typename T> // specialization by concept (good)
         requires C<T>
     void f();
+
+Sometimes it is a good idea to avoid constraining class templates with concepts, as this disables the possibility to use an incomplete instance of the type in another class. A good example of this is the standard container classes. [ODwyer20](#ODwyer20)
+
+**Exmaple:**
+
+    template <std::regular T>
+    class BadVector {
+        T* data:
+    };
+    
+    template <typename T>
+    class GoodVector {
+        T* data:
+    };
+    
+    class TreeNode {
+        int root;
+        BadVector<TreeNode> children; // Oops! Compiler wants to check if BadVector<TreeNode> is std::regular, but it cannot because TreeNode is incomplete at this point.
+    };
+    
+    class TreeNode {
+        int root;
+        GoodVector<TreeNode> children; // Ok! TreeNode is incomplete at this point but the compiler doesn't need it yet. It will know what GoodVector<TreeNode> is once the class definition is complete.
+    };
+
+As a consequence of this, concept checks like `std::copyable<std::vector<T>>` will test as true, even if `std::copyable<T>` is false. This is because unconstrained member functions such as the copy constructor can be defined even if `T` has deleted it. Instantiating the copy constructor would of course yield a compile-time error, but concepts are only checked against interfaces, not implementations. Note that concepts can still be checked with `static_assert` inside the member functions of an unconstrained class, providing earlier error checking and better error messages.
 
 
 Concept definitions
@@ -805,6 +831,11 @@ A `relation` is `strict_weak_order` iff it imposes a *strict weak ordering* on i
 
 References
 ----------
+
+<a name="ODwyer20"></a>
+[ODwyer20]
+"SFINAE special members or support incomplete types: Pick at most one"
+https://quuxplusone.github.io/blog/2020/02/05/vector-is-copyable-except-when-its-not/
 
 <a name="Sutton13"></a>
 [Sutton13]
