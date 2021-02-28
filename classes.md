@@ -575,7 +575,7 @@ A C++ mixin class is a template class that is parameterized on its [Base class](
     class ConcreteMessage {
     public:
         void print()
-        { cout << "Hello!"; }
+        { std::cout << "Hello!"; }
     };
     
     template <typename T>
@@ -583,9 +583,9 @@ A C++ mixin class is a template class that is parameterized on its [Base class](
     public:
         void print()
         {
-            cout << "<b>";
+            std::cout << "<b>";
             T::print();
-            cout << "</b>";
+            std::cout << "</b>";
         }
     };
     
@@ -594,9 +594,9 @@ A C++ mixin class is a template class that is parameterized on its [Base class](
     public:
         void print()
         {
-            cout << "<i>";
+            std::cout << "<i>";
             T::print();
-            cout << "</i>";
+            std::cout << "</i>";
         }
     };
     
@@ -695,7 +695,7 @@ Introduces a name that is declared elsewhere into the declarative region where t
         int foo; // Base::foo is protected
     };
     
-    Class Derived : public Base {
+    class Derived : public Base {
     public:
         using Base::foo; // Derived::foo is public
     };
@@ -723,7 +723,7 @@ The `friend` keyword can be used to override access restrictions for other class
 
 **Example:**
 
-    Class Foo {
+    class Foo {
     private:
         int data;
     
@@ -917,11 +917,11 @@ If a class has a reference member, it probably needs a copy constructor. [Strous
         NonSliceableComponents(const NonSliceableComponents& rhs)
         {
             // Deep-copy all components
-            for (vector<NonSliceable*>::const_iterator it = rhs.components_.begin(); it != rhs.components_.end(); ++it)
-            { components_.push_back(it->clone()); }
+            for (const auto& component : rhs.components_)
+            { components_.push_back(component.clone()); }
         }
     private:
-        vector<NonSliceable*> components_;
+        std::vector<NonSliceable*> components_;
     };
     
     struct NonSliceableComponent {
