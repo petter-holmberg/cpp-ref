@@ -4,7 +4,7 @@ C++ classes quick reference
 This document is a collection of design guidelines for C++ classes. It is intended to be used as a quick reference when designing new classes or refactoring old ones.
 For brevity and simplicity of use, it does not discuss at length the *whys* of the guidelines, but instead presents references to further reading about the subject.
 
-The guidelines cover C++98, C++11 and C++14, with notes on differences between the versions.
+The guidelines cover C++98, C++11, C++14, C++17 and C++20, with notes on differences between the versions.
 
 
 General class design guidelines
@@ -168,7 +168,6 @@ Use the following algorithm for determining whether a function should be a membe
         Make it a member.
     
 
-
 ### Exception guarantees
 
 Provide the strongest possible exception guarantee for each function, and document it. A function can usually offer a guarantee no stronger than the weakest guarantee of the functions it calls. [Meyers05](#Meyers05) §29, [Sutter02](#Sutter02) §22, [Sutter05](#Sutter05) §71
@@ -188,7 +187,7 @@ Observe the canonical exception-safety rules: [Sutter99](#Sutter99) §8-18
 #### No-fail Guarantee
 
 The No-fail Guarantee is the strongest: The function simply cannot fail. The caller doesn't need to check for any errors.
-A prerequisite for any destructor, deallocation function or `swap()` function.
+A prerequisite for any destructor, deallocation function or `swap` function.
 
 
 <a name="StrongGuarantee"></a>
@@ -549,9 +548,9 @@ Because you can mix and match policies, you can achieve a combinatorial set of b
         using OutputPolicy::print;
         using LanguagePolicy::message;
     public:
-        // Behavior method
+        // Behavior member function
         void run() const
-        { print(message()); } // Two policy methods
+        { print(message()); } // Two policy member functions
     };
     
     typedef HelloWorld<OutputPolicyWriteToCout, LanguagePolicyEnglish> HelloWorldEnglish;
@@ -609,10 +608,10 @@ A C++ mixin class is a template class that is parameterized on its [Base class](
 Ancillary classes support specific [idioms](#CppIdioms). They should be easy to use correctly and hard to use incorrectly.
 
 
-Class-related keywords and identifiers
---------------------------------------
+Class-related keywords, attributes, and identifiers
+---------------------------------------------------
 
-The following is a summary of the important class-related keywords in C++
+The following is a summary of the important class-related keywords in C++.
 
 
 ### class, struct, union
@@ -751,7 +750,12 @@ C++11 has deprecated the `throw` keyword. The `noexcept` keyword was added to su
 
 ### noexcept
 
-In C++11, the `noexcept`  keyword declares that the function (sometimes conditionally) will not throw exceptions. `noexcept` functions are more optimizable than non-`noexcept` functions and clearly communicates intent to clients. `noexcept` is particularly valuable for the move operations, `swap()`, memory deallocation functions, and destructors. Declaring a function `noexcept` makes it hard to remove that promise later, without breaking client code. Use it only when willing to commit to a `noexcept` implementation over the long term. [Meyers14](#Meyers14) §14
+In C++11, the `noexcept`  keyword declares that the function (sometimes conditionally) will not throw exceptions. `noexcept` functions are more optimizable than non-`noexcept` functions and clearly communicates intent to clients. `noexcept` is particularly valuable for the move operations, `swap`, memory deallocation functions, and destructors. Declaring a function `noexcept` makes it hard to remove that promise later, without breaking client code. Use it only when willing to commit to a `noexcept` implementation over the long term. [Meyers14](#Meyers14) §14
+
+
+### nodiscard
+
+In C++17, the `[[nodiscard]]` attribute encourages the compiler to issue a warning if the caller of a function declared with it is discarded. It is good practice to use it for potentially expensive functions or functions whose names can be confusing (e.g. a member function `.empty()`). It is not good practice to use it for functions whose return values are routinely ignored (e.g. assignment operators). Use `std::ignore` to turn off warnings if needed in specific places.
 
 
 ### delete
@@ -877,7 +881,7 @@ In C++11, if you write the destructor and want to support default copy operation
 
 Always avoid calling virtual functions in destructors. [Sutter05](#Sutter05) §49
 
-A destructor implies changing state outside of the object being destroyed. If the object is performing resource allocation, then the compiler generated/supplied methods will be wrong!
+A destructor implies changing state outside of the object being destroyed. If the object is performing resource allocation, then the compiler generated/supplied member functions will be wrong!
 
 
 #### Copy constructor
@@ -905,7 +909,7 @@ Copy construction needs to be correct (and should be cheap) for [Value classes](
 
 Abstract base classes can define the copy constructor `explicit` to allow slicing but prevent it from being done by accident. [Sutter05](#Sutter05) §54
 
-Abstract base classes can also define a pure virtual `clone()` function (otherwise known as a virtual copy constructor), returning a pointer to a (deep) copy of the object. This can be used by the normal copy constructor to avoid slicing. [Meyers96](#Meyers96) §25, [Sutter05](#Sutter05) §54
+Abstract base classes can also define a pure virtual `clone` function (otherwise known as a virtual copy constructor), returning a pointer to a (deep) copy of the object. This can be used by the normal copy constructor to avoid slicing. [Meyers96](#Meyers96) §25, [Sutter05](#Sutter05) §54
 
 If a class has a reference member, it probably needs a copy constructor. [Stroustrup13](#Stroustrup13) §17.4.1.1
 
@@ -950,7 +954,7 @@ In C++11, default generation of the copy assignment operator if a user-declared 
 
 In C++11, the copy assignment operator is deleted if the class declares a move constructor or move assignment operator, and must be user-declared to enable copy assignment. [Meyers14](#Meyers14) §17
 
-The canonical form for copy assignment implementation is to provide a No-fail `swap()` function and implement copy assignment by creating a temporary, swapping and then returning (see [swap](#swap)). [Sutter02](#Sutter02) §22
+The canonical form for copy assignment implementation is to provide a No-fail `swap` function and implement copy assignment by creating a temporary, swapping and then returning (see [swap](#swap)). [Sutter02](#Sutter02) §22
 
 Never write a copy assignment operator that relies on a check for self-assignment in order to work properly; a copy assignment operator that uses the create-a-temporary-and-swap idiom is automatically both strongly exception-safe and safe for self-assignment. It's all right to use a self-assignment check as an optimization to avoid needless work. [Sutter99](#Sutter99) §38
 
@@ -990,7 +994,7 @@ If the type implementation is unknown, assume that move assignment is not presen
 <a name="swap"></a>
 ### swap
 
-In C++98, the `std::swap()` function is typically implemented like this, utilizing the class's copy constructor and copy assignment operator:
+In C++98, the `std::swap` function is typically implemented like this, utilizing the class's copy constructor and copy assignment operator:
 
     namespace std {
         template <typename T>
@@ -1002,11 +1006,11 @@ In C++98, the `std::swap()` function is typically implemented like this, utilizi
         }
     }
 
-For classes where this implementation is inefficient (for example classes consisting primarily of pointers to other types containing the real data), provide a No-fail `swap()` function to efficiently and infallibly swap the contents of this object with another's. It has many potential uses (primarily in [Value classes](#ValueClasses)), e.g. to implement assignment easily while maintaining the [Strong Guarantee](#StrongGuarantee) for objects composed of other objects that provide it. [Meyers05](#Meyers05) §25, [Sutter99](#Sutter99) §12 [Sutter02](#Sutter02) §22 [Sutter05](#Sutter05) §56
+For classes where this implementation is inefficient (for example classes consisting primarily of pointers to other types containing the real data), provide a No-fail `swap` function to efficiently and infallibly swap the contents of this object with another's. It has many potential uses (primarily in [Value classes](#ValueClasses)), e.g. to implement assignment easily while maintaining the [Strong Guarantee](#StrongGuarantee) for objects composed of other objects that provide it. [Meyers05](#Meyers05) §25, [Sutter99](#Sutter99) §12 [Sutter02](#Sutter02) §22 [Sutter05](#Sutter05) §56
 
-If you offer a member `swap()`, also offer a non-member `swap()` that calls the member. For classes (not templates), specialize `std::swap()` too. When calling `swap()`, employ a `using` declaration for `std::swap()`, then call `swap()` without namespace qualification. It's fine to totally specialize `std` templates for user-defined types, but never try to add something completely new to `std`. [Meyers05](#Meyers05) §25
+If you offer a member `swap`, also offer a non-member `swap` that calls the member. For classes (not templates), specialize `std::swap` too. When calling `swap`, employ a `using` declaration for `std::swap`, then call `swap` without namespace qualification. It's fine to totally specialize `std` templates for user-defined types, but never try to add something completely new to `std`. [Meyers05](#Meyers05) §25
 
-In C++11, `swap()` is implemented using `std::move`, so for types with an efficient move constructor and move assignment operator the default implementation is usually sufficient.
+In C++11, `swap` is implemented using `std::move`, so for types with an efficient move constructor and move assignment operator the default implementation is usually sufficient.
 
 **Example implementation:**
 
@@ -1018,10 +1022,9 @@ In C++11, `swap()` is implemented using `std::move`, so for types with an effici
         // Member swap (first swap bases, then members)
         void swap(Derived& rhs) noexcept
         {
-            using std::swap;
             Base::swap(rhs);              // Swap base class members (user-defined)
             member1_.swap(rhs.member1_);  // User-defined, using member version
-            swap(member2_, rhs.member2_); // Built-in std::swap
+            std::swap(member2_, rhs.member2_); // Built-in std::swap
         }
     
         // Copy assignment operator utilizing swap (traditional)
@@ -1073,16 +1076,36 @@ In C++11, `swap` can be implemented easily for a class with many members using `
     
     void swap(X& a, X& b)
     {
-        using std::swap;
         auto a_members = std::tie(a.a, a.b, a.c);
         auto b_members = std::tie(b.a, b.b, c.c);
-        swap(a_members, b_members);
+        std::swap(a_members, b_members);
     }
 
+When calling `swap` in a template function, use `using std::swap` and call it without namespace qualifiction to find the specific implementation if it exists and the general function if not. [Stroustrup21](#Stroustrup21")
+
+    template <typename T>
+    void foo(T& x, T& y)
+    {
+        using std::swap; // Make std::swap available
+        swap(x, y);      // Calls T::swap if it exists, otherwise std::swap
+    }
+
+In C++20, prefer `std::ranges::swap`, which obviates the need to consider the two-step lookup.
+
+    template <typename T>
+    void foo(T& x, T& y)
+    {
+        std::ranges::swap(x, y); // Calls T::swap if it exists, otherwise std::swap
+    }
+
+template<class T>
+void test(T& t) {
+    std::ranges::swap(t, t);
+}
 
 ### Operators
 
-By default, avoid providing implicit conversion operators of the form `operator Type()`. Instead, use named functions (like `std::string`'s `c_str()` function). [Sutter05](#Sutter05) §40
+By default, avoid providing implicit conversion operators of the form `operator Type()`. Instead, use named functions (like `std::string`'s `c_str` function). [Sutter05](#Sutter05) §40
 
 When overloading operators, provide multiple versions with different argument types, when applicable, to prevent wasteful implicit type conversions (e.g. for string comparison) [Sutter05](#Sutter05) §29
 
@@ -1409,7 +1432,7 @@ C++ idioms
 #### RAII
 
 Any class that allocates a resource that must be released after use (heap memory, file handle, thread, socket etc.) should be implemented using the RAII Idiom (Resource Acquisition Is Initialization): [Stroustrup13](#Stroustrup13) §3.2.1.2
-- Perform allocation/acquisition in the constructor (or lazily at the first method call that needs it). [Meyers96](#Meyers96) §17
+- Perform allocation/acquisition in the constructor (or lazily at the first member function call that needs it). [Meyers96](#Meyers96) §17
 - Perform deallocation/release in the destructor.
 - Either provide a copy constructor and copy assignment operator with valid resource copying semantics or disable both. [Meyers05](#Meyers05) §13 §14, [Sutter05](#Sutter05) §13
 
@@ -1419,20 +1442,26 @@ APIs often require access to raw resources, so RAII classes should provide some 
 
     class Resource {
     private:
-        RawResource* resource_; // The managed resource
+        RawResource* resource_ = nullptr; // The managed resource
     public:
-        Resource()
-        { resource_ = new RawResource(); } // Acquisition
+        Resource() = default; // No acquisition (noexcept and fast)
+    
+        explicit Resource(RawResource* raw)
+            : resource_{raw} // Acquisition
+        {}
+    
+        explicit Resource(const Arg& arg)
+            : resource_{new resoure{arg}} // Acquisition
+        {}
     
         ~Resource()
         {
-            if (resource_) {
-                delete resource_; // Release
-            }
+            delete resource_; // Release (may need an if test for some resource types)
         }
     
         Resource(const Resource& rhs)
-        { ... } // Steps necessary for copying a RawResource object
+            : // Steps necessary for copying a RawResource object
+        { ... } // Extra steps
     
         Resource& operator=(const Resource& rhs)
         {
@@ -1441,12 +1470,28 @@ APIs often require access to raw resources, so RAII classes should provide some 
             return *this;
         }
     
+        // C++14 version
+        Resource(Resource&& rhs) noexcept
+            : resource_{std::exchange(rhs.resource_, nullptr)}
+        {}
+    
+        // C++11 version
         Resource(Resource&& rhs)
         {
             resource_ = rhs.resource_;
             rhs.resource_ = nullptr;
         }
     
+        // Standard version (C++14)
+        Resource& operator=(Resource&& rhs)
+        {
+            if (this != &rhs) {
+                resource_ = std::exchange(rhs.resource_, nullptr);
+            }
+            return *this;
+        }
+    
+        // Standard version (C++11)
         Resource& operator=(Resource&& rhs)
         {
             if (this != &rhs) {
@@ -1457,14 +1502,36 @@ APIs often require access to raw resources, so RAII classes should provide some 
             return *this;
         }
     
-        void swap(Resource& rhs) noexcept
+        // Alternative branch-free version for pointers (still safe for self-assignment)
+        Resource& operator=(Resource&& rhs)
         {
-            using std::swap;
-            swap(resource_, rhs.resource_);
+            RawResource* temp = rhs.resource_; // Copy handle to raw resource that will be moved
+            rhs.resource_ = nullptr; // If self-move, sets resource_ to nullptr too
+            delete resource_; // If self-move, deletes nothing
+            resource_ = temp; // If self-move, sets resource_ to original rhs.resource_
+            return *this;
         }
     
-        RawResource* get() const
-        { return resource_; } // Access to raw resource
+        void swap(Resource& rhs) noexcept
+        {
+            std::swap(resource_, rhs.resource_);
+        }
+    
+        RawResource* get() const noexcept // Access raw resource
+        { return resource_; }
+    
+        void reset(RawResource* raw) noexcept // Release resource and set new one
+        {
+            delete resource_;
+            resource_ = raw;
+        }
+    
+        RawResource* release() noexcept // Release raw resource to caller
+        {
+            RawResource* ret = resource_;
+            resource_ = nullptr;
+            return ret; 
+        }
     };
     
     namespace std
@@ -1570,7 +1637,7 @@ The Visitor Pattern allows adding functionality to a set of classes without "pol
     
     class Baz : public Base {};
 
-Now, to add a `log()` functionality to all derived classes, first add an `accept(Visitor)` function to the hierarchy:
+Now, to add a `log` functionality to all derived classes, first add an `accept(Visitor)` function to the hierarchy:
 
     class Base {
     public:
@@ -1592,7 +1659,7 @@ Now, to add a `log()` functionality to all derived classes, first add an `accept
         virtual void accept(Visitor& v) override { v.visit(this); }
     };
 
-Next, create a `Visitor` [Base class](#BaseClasses) with a pure virtual `visit()` method for each `Base` type:
+Next, create a `Visitor` [Base class](#BaseClasses) with a pure virtual `visit` member function for each `Base` type:
 
     class Visitor {
     public:
@@ -1796,10 +1863,6 @@ In order to ensure object identity, empty classes in C++ don't take 0 bytes of m
 References
 ----------
 
-<a name="Stroustrup13"></a>
-[Stroustrup13]
-"The C++ Programming Language, 4th Edition", ISBN 978-0-321-56384-2
-
 <a name="Meyers05"></a>
 [Meyers05]
 "Effective C++", ISBN 0-321-33486-7
@@ -1823,6 +1886,14 @@ References
 <a name="Sutter99"></a>
 [Sutter99]
 "Exceptional C++", ISBN 0-201-61562-2
+
+<a name="Stroustrup13"></a>
+[Stroustrup13]
+"The C++ Programming Language, 4th Edition", ISBN 978-0-321-56384-2
+
+<a name="Stroustrup21"></a>
+[Stroustrup21](https://isocpp.github.io/CppCoreGuidelines/CppCoreGuidelines)
+"C++ Core Guidelines"
 
 <a name="Sutter02"></a>
 [Sutter02]
